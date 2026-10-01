@@ -1,5 +1,7 @@
--- cargar_coches.lua  ·  v10.4
+-- cargar_coches.lua  ·  v10.5
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v10.5: [Fijar mi ropa]: solo se acepta que el servidor te QUITE una prenda (pantalón, camiseta...); cualquier otro cambio se repone, también la ropa copiada
+--          · los tatuajes (los del menú y los que ya llevas) se vigilan cada segundo y se reponen siempre; se guardan los reales
 --   v10.4: [Fijar mi ropa]: si el servidor te vuelve a poner su ropa, solo se queda lo que él haya cambiado (p. ej. quitar pantalones en su menú); lo demás se repone
 --   v10.3: [Copiar ropa] también copia los tatuajes (nativa de FiveM GetPedDecorations)
 --   v10.2: Personaje > [Copiar ropa]: lista de jugadores cercanos; al elegir uno te pone toda su ropa (mochila, accesorios, peinado y color de pelo)
@@ -1113,6 +1115,7 @@ local PROPS = { 0, 1, 2, 6, 7 }
 -- Muchas prendas a la vez (recarga de ropa del servidor, reaparecer) → se repone todo.
 -- Accesorio caído al hacer ragdoll o caer → se repone.
 Ropa.fijar, Ropa.fija = false, nil
+local AdoptarTatuajes   -- se define más abajo, junto a los tatuajes
 local ROPA_DE_GOLPE = 5   -- a partir de cuántas prendas cambiadas a la vez se considera un "reseteo"
 
 local function FotoRopa(p)
@@ -1142,60 +1145,51 @@ local function IgualComp(a, b) return a and b and a[1] == b[1] and a[2] == b[2] 
 local function IgualProp(a, b) return a and b and a[1] == b[1] and (a[1] < 0 or a[2] == b[2]) end
 
 -- Mira qué ha cambiado y decide qué se queda y qué se repone.
---   · Pocas prendas cambiadas → lo has hecho tú: se queda.
---   · Muchas a la vez → el servidor te ha vuelto a poner SU ropa guardada. Se compara con la
---     última ropa que puso el servidor (f.srv): lo que el servidor ha cambiado desde entonces
---     (p. ej. le has dado a quitar pantalones en su menú) se queda; todo lo demás se repone.
+--   · Una prenda QUITADA (el servidor te la ha dejado en "desnudo": pantalón, camiseta...) → se queda quitada.
+--   · Cualquier otro cambio (el servidor te vuelve a poner su ropa) → se repone la tuya,
+--     aunque sea ropa copiada. Solo se toca lo que ha cambiado: lo demás no se mueve.
+--   · Personajes que no son freemode (no hay valor "desnudo" conocido): cambios pequeños se aceptan.
+local DESNUDO_H = { [1] = 0, [3] = 15, [4] = 21, [5] = 0, [6] = 34, [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15 }
+local DESNUDO_M = { [1] = 0, [3] = 15, [4] = 15, [5] = 0, [6] = 35, [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15 }
+local HASH_H, HASH_M = GetHashKey("mp_m_freemode_01"), GetHashKey("mp_f_freemode_01")
 local ultimoAviso = 0
 local function VigilarRopa(p, f)
+    local ahora = FotoRopa(p)
+    local tabla = (f.modelo == HASH_H and DESNUDO_H) or (f.modelo == HASH_M and DESNUDO_M) or nil
     local cambiadas = {}
     for c, v in pairs(f.comp) do
-        if not IgualComp(LeerComp(p, c), v) then cambiadas[#cambiadas + 1] = c end
+        if not IgualComp(ahora.comp[c], v) then cambiadas[#cambiadas + 1] = c end
     end
-    local enCoche = IsPedInAnyVehicle(p, true) or GetVehiclePedIsTryingToEnter(p) ~= 0
-    local de_golpe = #cambiadas >= ROPA_DE_GOLPE
 
-    if not de_golpe then
-        for _, c in ipairs(cambiadas) do
-            f.comp[c] = LeerComp(p, c)
+    local repuestas = 0
+    for _, c in ipairs(cambiadas) do
+        local nv = ahora.comp[c]
+        local quitada
+        if tabla then quitada = (nv[1] == tabla[c]) else quitada = (#cambiadas < ROPA_DE_GOLPE) end
+        if quitada then
+            f.comp[c] = nv                                  -- te la has quitado (menú del servidor): se queda quitada
+        else
+            PonerComp(p, c, f.comp[c]); repuestas = repuestas + 1
         end
-    else
-        local ahora = FotoRopa(p)   -- la ropa tal y como la ha puesto el servidor
-        local repuestas = 0
-        for _, c in ipairs(cambiadas) do
-            if f.srv and not IgualComp(ahora.comp[c], f.srv.comp[c]) then
-                f.comp[c] = ahora.comp[c]          -- el servidor la ha cambiado a propósito: se queda
-            else
-                PonerComp(p, c, f.comp[c]); repuestas = repuestas + 1
-            end
-        end
-        if not enCoche then
-            for pr, v in pairs(f.prop) do
-                if not IgualProp(ahora.prop[pr], v) then
-                    if f.srv and not IgualProp(ahora.prop[pr], f.srv.prop[pr]) then f.prop[pr] = ahora.prop[pr]
-                    else PonerProp(p, pr, v) end
-                end
-            end
-        end
-        f.srv = ahora
-        if repuestas > 0 and GetGameTimer() - ultimoAviso > 3000 then
-            ultimoAviso = GetGameTimer()
-            Avisar("Ropa fija: repuestas " .. repuestas .. " prendas")
-        end
-        return
     end
+    local reseteo = repuestas > 0
 
     -- Accesorios: dentro de un coche el juego pone/quita cascos y gorras solo, ahí no se toca nada
-    if enCoche then return end
-    local cayendo = IsPedRagdoll(p) or IsPedFalling(p) or IsPedInParachuteFreeFall(p) or IsPedBeingStunned(p, 0)
-    for pr, v in pairs(f.prop) do
-        local d, t = GetPedPropIndex(p, pr), GetPedPropTextureIndex(p, pr)
-        if not IgualProp({ d, t }, v) then
-            if cayendo and d < 0 then PonerProp(p, pr, v)               -- se te ha caído
-            else
-                f.prop[pr] = { d, t }                                   -- te lo has quitado/puesto tú
+    local enCoche = IsPedInAnyVehicle(p, true) or GetVehiclePedIsTryingToEnter(p) ~= 0
+    if not enCoche then
+        local cayendo = IsPedRagdoll(p) or IsPedFalling(p) or IsPedInParachuteFreeFall(p) or IsPedBeingStunned(p, 0)
+        for pr, v in pairs(f.prop) do
+            local nv = ahora.prop[pr]
+            if not IgualProp(nv, v) then
+                if reseteo or (cayendo and nv[1] < 0) then PonerProp(p, pr, v)   -- reseteo del servidor o se te ha caído
+                else f.prop[pr] = nv end                                          -- te lo has quitado/puesto tú
             end
         end
+    end
+
+    if repuestas > 0 and GetGameTimer() - ultimoAviso > 3000 then
+        ultimoAviso = GetGameTimer()
+        Avisar("Ropa fija: repuestas " .. repuestas .. " prendas")
     end
 end
 
@@ -1371,6 +1365,7 @@ CATEGORIAS_ROPA = {
             set = function(on)
                 Ropa.fijar = on and true or false
                 Ropa.fija = Ropa.fijar and FotoRopa(PlayerPedId()) or nil
+                if Ropa.fijar and AdoptarTatuajes then AdoptarTatuajes() end
                 Avisar(Ropa.fijar and "Ropa fijada" or "Ropa libre")
             end }
         for n = 1, 3 do
@@ -1547,6 +1542,42 @@ local function AplicarTatuajes()
         if t and not LlevaTatuaje(t) then AddPedDecorationFromHashes(p, t[1], t[2]) end
     end
 end
+
+-- Mete en la lista los tatuajes que lleva tu personaje ahora (los del servidor también)
+function AdoptarTatuajes()
+    if not EsFreemode() then return end
+    local act = LeerTatuajesDe(PlayerPedId())
+    if not act then return end
+    for _, t in ipairs(act) do
+        if not LlevaTatuaje(t) then Ropa.tatuajes[#Ropa.tatuajes + 1] = { t[1], t[2] } end
+    end
+end
+
+-- Con "Fijar mi ropa": los tatuajes de la lista siempre puestos (si el servidor te los quita, se reponen)
+Citizen.CreateThread(function()
+    local pedAnterior = 0
+    while true do
+        Citizen.Wait(1000)
+        if Ropa.fijar and #Ropa.tatuajes > 0 then
+            local p = PlayerPedId()
+            if DoesEntityExist(p) and not IsEntityDead(p) and EsFreemode() then
+                local act = LeerTatuajesDe(p)
+                local faltan = false
+                if act then
+                    for _, t in ipairs(Ropa.tatuajes) do
+                        local esta = false
+                        for _, x in ipairs(act) do if MismoTatuaje(x, t) then esta = true; break end end
+                        if not esta then faltan = true; break end
+                    end
+                else
+                    faltan = (p ~= pedAnterior)   -- no se pueden leer: se reponen al cambiar de ped (reaparecer)
+                end
+                pedAnterior = p
+                if faltan then pcall(AplicarTatuajes) end
+            end
+        end
+    end
+end)
 
 -- ── Cambiar a personaje freemode ──────────────────────────
 local function CambiarModelo(nombre)
@@ -1926,6 +1957,7 @@ local function CapturarApariencia()
         a.detalles = {}
         for _, d in ipairs(DETALLES) do a.detalles[d[1]] = LeerDetalle(d[1]) end
         a.ojos = Ropa.ojos
+        AdoptarTatuajes()
         a.tatuajes = Ropa.tatuajes
     end
     return a
