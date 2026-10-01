@@ -1,5 +1,6 @@
--- cargar_coches.lua  ·  v10.8
+-- cargar_coches.lua  ·  v10.9
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v10.9: una sola copia a la vez: al volver a ejecutar el script, la anterior se descarga sola (suelta todo) y esta toma el relevo; sin crash
 --   v10.8: Personaje > [Uniformes]: policía, mecánico y médico (tabla UNIFORMES, fácil de ampliar)
 --   v10.7: [Copiar ropa]: mochila y demás prendas addon se ponen sin comprobar "validez" (antes se saltaban), se verifican, se reintentan y se avisa de las que fallen
 --   v10.6: [Copiar ropa] copia todo: cara, rasgos, maquillaje, ojos y forma de andar (con Fijar mi ropa se reponen)
@@ -46,6 +47,41 @@
 -- ═════════════════════════════════════════════════════════
 -- CONFIGURACIÓN
 -- ═════════════════════════════════════════════════════════
+-- ═════════════════════════════════════════════════════════
+-- UNA SOLA COPIA A LA VEZ
+--   Si se vuelve a ejecutar el script con otra copia ya cargada, la vieja se descarga sola:
+--   al notar que ya no es la vigente suelta lo que tuviera (coches, cámara, camión de la manguera...)
+--   y termina todos sus hilos; esta copia toma el relevo. Así nunca corren dos a la vez.
+--   (Todo va dentro de la tabla Citizen para no gastar variables locales: Lua permite 200 como máximo.)
+-- ═════════════════════════════════════════════════════════
+local Citizen = setmetatable({
+    CLAVE = "__cargar_coches_instancia",
+    ID = tostring(os.time()) .. "-" .. tostring(math.random(1, 2000000000)) .. "-" .. tostring(os.clock()),
+    MUERTO = {},        -- "error" especial que termina un hilo de una copia vieja sin ruido
+    Limpieza = nil,     -- se define al final: suelta todo lo de esta copia
+}, { __index = Citizen })
+Citizen.HABIA_OTRA = rawget(_G, Citizen.CLAVE) ~= nil
+rawset(_G, Citizen.CLAVE, Citizen.ID)
+do
+    local Real = getmetatable(Citizen).__index
+    Citizen.Real = Real
+    function Citizen.Wait(ms)
+        Real.Wait(ms)
+        if rawget(_G, Citizen.CLAVE) ~= Citizen.ID then
+            local f = Citizen.Limpieza; Citizen.Limpieza = nil
+            if f then pcall(f) end
+            error(Citizen.MUERTO, 0)
+        end
+    end
+    function Citizen.CreateThread(fn, ...)
+        return Real.CreateThread(function(...)
+            local ok, err = pcall(fn, ...)
+            if not ok and err ~= Citizen.MUERTO then error(err, 0) end
+        end, ...)
+    end
+end
+if Citizen.HABIA_OTRA then print("[cargar coches] Había otra copia cargada: se descarga y esta toma el relevo") end
+
 local Config = {
     activado       = false,  -- mod encendido (se activa desde el menú)
     contorno       = false,  -- iluminar el coche apuntado
@@ -4872,6 +4908,8 @@ local function SoltarTodos(me, ahora, caer)
     Super.orbitObj = nil
     StopAnimTask(me, ANIM_CARGAR.dict, ANIM_CARGAR.name, 2.0)
 end
+
+Super.SoltarTodos = SoltarTodos   -- para poder soltarlo al descargar el script
 
 local function Empezar(me, ahora)
     if vehiculo then Avisar("Suelta primero el coche que llevas en las manos"); return end
@@ -10637,7 +10675,23 @@ local function MostrarError()
     EndTextCommandDisplayText(0.02, 0.02)
 end
 
+-- Lo que hace esta copia al ser sustituida por otra: dejar todo como estaba
+Citizen.Limpieza = function()
+    print("[cargar coches] Copia anterior descargada")
+    local me = PlayerPedId()
+    pcall(function() if vehiculo then Soltar() end end)
+    pcall(function() if Pos and Pos.activo then Soltar_("script recargado") end end)
+    pcall(function() if Super.activo and Super.SoltarTodos then Super.SoltarTodos(me, GetGameTimer(), true) end end)
+    pcall(function() Extras.PararAgua() end)
+    pcall(function() if apuntado then Contorno(apuntado, false); apuntado = nil end end)
+    pcall(function() ClearFocus() end)
+    pcall(function() FreezeEntityPosition(me, false) end)
+    pcall(function() StopAnimTask(me, ANIM_CARGAR.dict, ANIM_CARGAR.name, 2.0) end)
+end
+
 Citizen.CreateThread(function()
+    -- Si había otra copia, se le da un momento para que se descargue antes de empezar a dibujar
+    if Citizen.HABIA_OTRA then Citizen.Real.Wait(500) end
     pcall(SetEntityDrawOutlineColor, table.unpack(Config.colorContorno))
     local okRec, errRec = pcall(R.CargarRecursos)
     if not okRec then print("[cargar coches] No se pudieron cargar los recursos: " .. tostring(errRec)) end
@@ -10671,6 +10725,7 @@ Citizen.CreateThread(function()
     while true do
         Citizen.Wait(0)
         local ok, err = pcall(Frame)
+        if not ok and err == Citizen.MUERTO then error(Citizen.MUERTO, 0) end
         if not ok and err ~= ultimoError then
             ultimoError = err
             print("[cargar coches] ERROR: " .. tostring(err))
