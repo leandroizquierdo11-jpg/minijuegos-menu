@@ -1,6 +1,6 @@
 -- cargar_coches.lua  ·  v10.5
 -- Script para FiveM usando la API de Susano (susano.re)
---   v10.5: [Fijar mi ropa]: solo se acepta que el servidor te QUITE una prenda (pantalón, camiseta...); cualquier otro cambio se repone, también la ropa copiada
+--   v10.5: [Fijar mi ropa]: se compara con la ropa original del servidor: lo que cambie a propósito (quitar pantalón, ponga lo que ponga) se queda; si solo repone su ropa, se vuelve a poner la tuya (también la copiada)
 --          · los tatuajes (los del menú y los que ya llevas) se vigilan cada segundo y se reponen siempre; se guardan los reales
 --   v10.4: [Fijar mi ropa]: si el servidor te vuelve a poner su ropa, solo se queda lo que él haya cambiado (p. ej. quitar pantalones en su menú); lo demás se repone
 --   v10.3: [Copiar ropa] también copia los tatuajes (nativa de FiveM GetPedDecorations)
@@ -1145,34 +1145,35 @@ local function IgualComp(a, b) return a and b and a[1] == b[1] and a[2] == b[2] 
 local function IgualProp(a, b) return a and b and a[1] == b[1] and (a[1] < 0 or a[2] == b[2]) end
 
 -- Mira qué ha cambiado y decide qué se queda y qué se repone.
---   · Una prenda QUITADA (el servidor te la ha dejado en "desnudo": pantalón, camiseta...) → se queda quitada.
---   · Cualquier otro cambio (el servidor te vuelve a poner su ropa) → se repone la tuya,
---     aunque sea ropa copiada. Solo se toca lo que ha cambiado: lo demás no se mueve.
---   · Personajes que no son freemode (no hay valor "desnudo" conocido): cambios pequeños se aceptan.
-local DESNUDO_H = { [1] = 0, [3] = 15, [4] = 21, [5] = 0, [6] = 34, [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15 }
-local DESNUDO_M = { [1] = 0, [3] = 15, [4] = 15, [5] = 0, [6] = 35, [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15 }
-local HASH_H, HASH_M = GetHashKey("mp_m_freemode_01"), GetHashKey("mp_f_freemode_01")
+-- Ropa.srv = la ropa ORIGINAL del servidor (la que llevabas antes de copiar o cambiar nada).
+--   · Una prenda cambia a un valor IGUAL al original del servidor → solo está reponiendo su ropa:
+--     se repone la tuya (aunque sea copiada).
+--   · Una prenda cambia a un valor DISTINTO al original → el servidor la ha cambiado a propósito
+--     (p. ej. le has dado a quitar pantalones en su menú, ponga lo que ponga): se queda,
+--     y pasa a ser la nueva ropa original del servidor.
 local ultimoAviso = 0
-local function VigilarRopa(p, f)
-    local ahora = FotoRopa(p)
-    local tabla = (f.modelo == HASH_H and DESNUDO_H) or (f.modelo == HASH_M and DESNUDO_M) or nil
-    local cambiadas = {}
-    for c, v in pairs(f.comp) do
-        if not IgualComp(ahora.comp[c], v) then cambiadas[#cambiadas + 1] = c end
-    end
 
+-- Guarda la ropa que tiene el servidor puesta (solo si aún no se conoce)
+local function SembrarBase(p, f)
+    local m = GetEntityModel(p)
+    if not Ropa.srv or Ropa.srv.modelo ~= m then Ropa.srv = f or FotoRopa(p) end
+end
+
+local function VigilarRopa(p, f)
+    SembrarBase(p)
+    local srv = Ropa.srv
+    local ahora = FotoRopa(p)
     local repuestas = 0
-    for _, c in ipairs(cambiadas) do
+    for c, v in pairs(f.comp) do
         local nv = ahora.comp[c]
-        local quitada
-        if tabla then quitada = (nv[1] == tabla[c]) else quitada = (#cambiadas < ROPA_DE_GOLPE) end
-        if quitada then
-            f.comp[c] = nv                                  -- te la has quitado (menú del servidor): se queda quitada
-        else
-            PonerComp(p, c, f.comp[c]); repuestas = repuestas + 1
+        if not IgualComp(nv, v) then
+            if IgualComp(nv, srv.comp[c]) then
+                PonerComp(p, c, v); repuestas = repuestas + 1   -- el servidor repone lo suyo: se vuelve a poner lo tuyo
+            else
+                f.comp[c] = nv; srv.comp[c] = nv                -- cambio del servidor a propósito (p. ej. quitar pantalón)
+            end
         end
     end
-    local reseteo = repuestas > 0
 
     -- Accesorios: dentro de un coche el juego pone/quita cascos y gorras solo, ahí no se toca nada
     local enCoche = IsPedInAnyVehicle(p, true) or GetVehiclePedIsTryingToEnter(p) ~= 0
@@ -1181,8 +1182,11 @@ local function VigilarRopa(p, f)
         for pr, v in pairs(f.prop) do
             local nv = ahora.prop[pr]
             if not IgualProp(nv, v) then
-                if reseteo or (cayendo and nv[1] < 0) then PonerProp(p, pr, v)   -- reseteo del servidor o se te ha caído
-                else f.prop[pr] = nv end                                          -- te lo has quitado/puesto tú
+                if (cayendo and nv[1] < 0) or IgualProp(nv, srv.prop[pr]) then
+                    PonerProp(p, pr, v)                          -- se te ha caído o el servidor repone lo suyo
+                else
+                    f.prop[pr] = nv; srv.prop[pr] = nv           -- cambio a propósito (tú o el menú del servidor)
+                end
             end
         end
     end
@@ -1192,6 +1196,13 @@ local function VigilarRopa(p, f)
         Avisar("Ropa fija: repuestas " .. repuestas .. " prendas")
     end
 end
+
+-- Al arrancar el script la ropa que llevas es la del servidor: se guarda como base
+Citizen.CreateThread(function()
+    Citizen.Wait(1500)
+    local p = PlayerPedId()
+    if DoesEntityExist(p) then pcall(SembrarBase, p) end
+end)
 
 Citizen.CreateThread(function()
     while true do
@@ -1365,6 +1376,7 @@ CATEGORIAS_ROPA = {
             set = function(on)
                 Ropa.fijar = on and true or false
                 Ropa.fija = Ropa.fijar and FotoRopa(PlayerPedId()) or nil
+                if Ropa.fijar then SembrarBase(PlayerPedId(), Ropa.fija) end
                 if Ropa.fijar and AdoptarTatuajes then AdoptarTatuajes() end
                 Avisar(Ropa.fijar and "Ropa fijada" or "Ropa libre")
             end }
@@ -1594,6 +1606,7 @@ local function CambiarModelo(nombre)
     SetPedHeadBlendData(p, 21, 0, 0, 21, 0, 0, 0.5, 0.5, 0.0, false)
     Ropa.cara, Ropa.rasgos, Ropa.detalles, Ropa.ojos = nil, {}, {}, nil
     Ropa.tatuajes, Ropa.vistaTatuaje = {}, {}
+    Ropa.srv = nil
     Ropa.Refijar()
     Ropa.sucio = true
     Avisar("Personaje cambiado")
