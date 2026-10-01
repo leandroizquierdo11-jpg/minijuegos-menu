@@ -1,5 +1,6 @@
--- cargar_coches.lua  ·  v10.9
+-- cargar_coches.lua  ·  v10.10
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v10.10: arreglo: la parte de "una sola copia" ya no depende de os/_G (en algunos executors no existen y el script no abría); si falla se desactiva sola
 --   v10.9: una sola copia a la vez: al volver a ejecutar el script, la anterior se descarga sola (suelta todo) y esta toma el relevo; sin crash
 --   v10.8: Personaje > [Uniformes]: policía, mecánico y médico (tabla UNIFORMES, fácil de ampliar)
 --   v10.7: [Copiar ropa]: mochila y demás prendas addon se ponen sin comprobar "validez" (antes se saltaban), se verifican, se reintentan y se avisa de las que fallen
@@ -51,35 +52,33 @@
 -- UNA SOLA COPIA A LA VEZ
 --   Si se vuelve a ejecutar el script con otra copia ya cargada, la vieja se descarga sola:
 --   al notar que ya no es la vigente suelta lo que tuviera (coches, cámara, camión de la manguera...)
---   y termina todos sus hilos; esta copia toma el relevo. Así nunca corren dos a la vez.
+--   y duerme todos sus hilos; esta copia toma el relevo. Así nunca corren dos a la vez.
 --   (Todo va dentro de la tabla Citizen para no gastar variables locales: Lua permite 200 como máximo.)
+--   Si el entorno no lo permite (sin _G, por ejemplo), esta parte se desactiva sola.
 -- ═════════════════════════════════════════════════════════
-local Citizen = setmetatable({
-    CLAVE = "__cargar_coches_instancia",
-    ID = tostring(os.time()) .. "-" .. tostring(math.random(1, 2000000000)) .. "-" .. tostring(os.clock()),
-    MUERTO = {},        -- "error" especial que termina un hilo de una copia vieja sin ruido
-    Limpieza = nil,     -- se define al final: suelta todo lo de esta copia
-}, { __index = Citizen })
-Citizen.HABIA_OTRA = rawget(_G, Citizen.CLAVE) ~= nil
-rawset(_G, Citizen.CLAVE, Citizen.ID)
-do
-    local Real = getmetatable(Citizen).__index
-    Citizen.Real = Real
-    function Citizen.Wait(ms)
-        Real.Wait(ms)
-        if rawget(_G, Citizen.CLAVE) ~= Citizen.ID then
-            local f = Citizen.Limpieza; Citizen.Limpieza = nil
-            if f then pcall(f) end
-            error(Citizen.MUERTO, 0)
+local Citizen = (function()
+    local Real = Citizen
+    local T = setmetatable({ Real = Real }, { __index = Real })
+    -- Todo esto es opcional: si el entorno no deja (sin _G, sin escribir globales...), se queda como antes
+    pcall(function()
+        local G = _G or _ENV
+        if type(G) ~= "table" then return end
+        local CLAVE = "__cargar_coches_instancia"
+        local ID = {}                       -- objeto único de esta copia
+        T.HABIA_OTRA = G[CLAVE] ~= nil
+        G[CLAVE] = ID
+        function T.Wait(ms)
+            Real.Wait(ms)
+            if G[CLAVE] ~= ID then
+                -- Esta copia ya no es la vigente: se limpia una vez y el hilo se duerme para siempre
+                local f = T.Limpieza; T.Limpieza = nil
+                if f then pcall(f) end
+                while true do Real.Wait(60000) end
+            end
         end
-    end
-    function Citizen.CreateThread(fn, ...)
-        return Real.CreateThread(function(...)
-            local ok, err = pcall(fn, ...)
-            if not ok and err ~= Citizen.MUERTO then error(err, 0) end
-        end, ...)
-    end
-end
+    end)
+    return T
+end)()
 if Citizen.HABIA_OTRA then print("[cargar coches] Había otra copia cargada: se descarga y esta toma el relevo") end
 
 local Config = {
@@ -10725,7 +10724,6 @@ Citizen.CreateThread(function()
     while true do
         Citizen.Wait(0)
         local ok, err = pcall(Frame)
-        if not ok and err == Citizen.MUERTO then error(Citizen.MUERTO, 0) end
         if not ok and err ~= ultimoError then
             ultimoError = err
             print("[cargar coches] ERROR: " .. tostring(err))
