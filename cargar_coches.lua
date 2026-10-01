@@ -1,5 +1,6 @@
--- cargar_coches.lua  ·  v10.10
+-- cargar_coches.lua  ·  v10.11
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v10.11: Superman: solo coge coches que se pueden controlar (vacíos, de NPC o tuyos; salta los que lleva o usó por última vez otro jugador) · radio de búsqueda hasta 1000 m
 --   v10.10: arreglo: la parte de "una sola copia" ya no depende de os/_G (en algunos executors no existen y el script no abría); si falla se desactiva sola
 --   v10.9: una sola copia a la vez: al volver a ejecutar el script, la anterior se descarga sola (suelta todo) y esta toma el relevo; sin crash
 --   v10.8: Personaje > [Uniformes]: policía, mecánico y médico (tabla UNIFORMES, fácil de ampliar)
@@ -4401,8 +4402,9 @@ end
 --     picado sobre su cabeza (le sigue aunque se mueva). Con varios NPCs marcados se reparten;
 --     sin marcados, al NPC de la flechita blanca; si no hay ninguno, a donde apuntas.
 --   · [L] otra vez: los bajas despacio y quedan en el suelo alrededor de ti.
---   Coge cualquier coche que no conduzca un jugador: vacíos o con un NPC al volante (también los
---   del servidor), vaya quien vaya detrás. Se vuelve a mirar el conductor justo antes de levantarlo.
+--   Solo coge los coches que el juego deja controlar: vacíos, de NPC (también los del servidor) o tuyos.
+--   Salta los que lleva un jugador o los que otro jugador usó por última vez (son suyos y no se dejan).
+--   Se vuelve a mirar el conductor justo antes de levantarlo.
 --   Para forzar el control se monta al jugador un instante y se le devuelve a su sitio. Objetivo: NPCs y jugadores.
 -- ═════════════════════════════════════════════════════════
 local SUPER_ANILLOS   = { 6, 8, 10, 12 }   -- coches por anillo, de abajo arriba (36 en total)
@@ -4427,13 +4429,27 @@ local function MedidasCoche(v)
     return math.max(maxD.y - minD.y, maxD.x - minD.x), maxD.z - minD.z, minD.z
 end
 
--- Se puede coger si no lo conduce un jugador (vacíos o con un NPC al volante, sean del mundo o del
--- servidor, vaya quien vaya detrás). Aparte: ni el tuyo, ni trenes, ni remolques enganchados.
+-- ¿Es de otro jugador? Si lo lleva un jugador (conductor o pasajero) o fue un jugador quien lo usó por
+-- última vez, el juego no deja controlarlo (sigue siendo suyo): no se intenta. Los coches de NPC, los
+-- vacíos que nadie usó y los que usaste tú sí se pueden coger.
+function Super.UsadoPorOtroJugador(v, me)
+    local n = GetVehicleModelNumberOfSeats(GetEntityModel(v)) or 0
+    for s = -1, math.max(n - 2, 0) do
+        local p = GetPedInVehicleSeat(v, s)
+        if p and p ~= 0 and p ~= me and IsPedAPlayer(p) then return true end
+    end
+    local ok, ult = pcall(GetLastPedInVehicleSeat, v, -1)   -- quién lo condujo por última vez
+    if ok and ult and ult ~= 0 and ult ~= me and DoesEntityExist(ult) and IsPedAPlayer(ult) then return true end
+    return false
+end
+
+-- Se puede coger si no es de otro jugador (ver arriba): vacíos, de NPC (del mundo o del servidor) o
+-- tuyos. Aparte: ni el tuyo ahora, ni trenes, ni remolques enganchados.
 local function Cogible(v, me, miVeh)
     if v == miVeh or v == vehiculo or v == Extras.camion.veh or Super.usados[v] then return false end
     if not DoesEntityExist(v) or IsEntityAttached(v) then return false end
     if IsThisModelATrain(GetEntityModel(v)) then return false end
-    if ConduceJugador(v) then return false end
+    if Super.UsadoPorOtroJugador(v, me) then return false end
     local ok, remolque = pcall(IsVehicleAttachedToTrailer, v)
     if ok and remolque then return false end
     return true
@@ -4949,7 +4965,7 @@ local function FrameArriba(me, ahora, t, dt)
                 Super.proxAdd, Super.acum = ahora + 300, 1.0
                 if #Super.coches == 0 and not Super.avisoVacio then
                     Super.avisoVacio = true
-                    Avisar("No hay coches que coger a menos de " .. floor(Config.supermanRadio) .. " m")
+                    Avisar("No hay coches libres (vacíos o de NPC) a menos de " .. floor(Config.supermanRadio) .. " m")
                 end
                 break
             end
@@ -5258,8 +5274,8 @@ local Secciones = {
                 "Cuántos coches suben por segundo: 1 = de uno en uno, despacio · 30 = casi todos de golpe (y suben más rápido)."),
             Slider("Coches a la vez", "supermanMax", 1, 36, 1, "%.0f",
                 "Cuántos coches levitas a la vez (hasta 36, en 4 anillos)."),
-            Slider("Radio de búsqueda", "supermanRadio", 10, 150, 5, "%.0f m",
-                "Hasta qué distancia se buscan coches. Coge cualquiera que no conduzca un jugador (vacíos o con NPC al volante)."),
+            Slider("Radio de búsqueda", "supermanRadio", 10, 1000, 10, "%.0f m",
+                "Hasta qué distancia se buscan coches (solo vacíos, de NPC o tuyos). Solo existen los que el juego tiene cargados a tu alrededor: normalmente unos 400 m, más con OneSync Infinity."),
             Slider("Fuerza", "supermanFuerza", 20, 120, 5, "%.0f m/s", "Velocidad a la que salen los coches al lanzarlos."),
             Lista("Al lanzar", "supermanModo", { "Todos a la vez", "De uno en uno" },
                 "Todos: lluvia de coches sobre el objetivo. De uno en uno: cada pulsación lanza uno y el anillo se vuelve a llenar."),
