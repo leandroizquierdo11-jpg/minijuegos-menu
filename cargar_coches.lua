@@ -1,5 +1,6 @@
--- cargar_coches.lua  ·  v10.7
+-- cargar_coches.lua  ·  v10.8
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v10.8: Personaje > [Uniformes]: policía, mecánico y médico (tabla UNIFORMES, fácil de ampliar)
 --   v10.7: [Copiar ropa]: mochila y demás prendas addon se ponen sin comprobar "validez" (antes se saltaban), se verifican, se reintentan y se avisa de las que fallen
 --   v10.6: [Copiar ropa] copia todo: cara, rasgos, maquillaje, ojos y forma de andar (con Fijar mi ropa se reponen)
 --   v10.5 (+ reposición inmediata: se vigila en cada frame y los tatuajes se reponen al instante junto a la ropa)
@@ -1974,6 +1975,69 @@ do
     local pos = #CATEGORIAS_ROPA
     for i, c in ipairs(CATEGORIAS_ROPA) do if c[1] == "Atuendos" then pos = i + 1 end end
     table.insert(CATEGORIAS_ROPA, pos, { "Copiar ropa", CategoriaCopiar })
+end
+
+-- ── Uniformes (trabajos) ──────────────────────────────────
+-- Cada uniforme tiene versión hombre (H) y mujer (M), en el formato habitual de los scripts de trabajos:
+--   tshirt = camiseta (8), torso = chaqueta (11), arms = brazos (3), pants = pantalón (4), shoes = zapatos (6),
+--   decals = insignias (10), bproof = chaleco (9), chain = cuello (7), mask = máscara (1), bags = mochila (5),
+--   helmet = sombrero (prop 0), glasses = gafas (prop 1), ears = pendientes (prop 2)
+-- Lo que no se indica queda "desnudo" / sin accesorio. Para añadir o corregir uno, edita los números.
+-- Son los de la ropa base del juego (freemode): con ropa addon del servidor pueden verse distinto.
+local UNIFORMES = {
+    { "Policía", "Uniforme de policía con gorra.",
+      H = { tshirt = { 59, 1 }, torso = { 55, 0 }, arms = 41, pants = { 25, 0 }, shoes = { 25, 0 }, helmet = { 46, 0 }, ears = { 2, 0 } },
+      M = { tshirt = { 36, 1 }, torso = { 48, 0 }, arms = 44, pants = { 34, 0 }, shoes = { 27, 0 }, helmet = { 45, 0 }, ears = { 2, 0 } } },
+    { "Mecánico", "Mono de trabajo de mecánico.",
+      H = { tshirt = { 15, 0 }, torso = { 65, 3 }, arms = 41, pants = { 38, 2 }, shoes = { 12, 0 } } },
+    { "Médico", "Uniforme de sanitario.",
+      H = { tshirt = { 15, 0 }, torso = { 146, 0 }, arms = 90, pants = { 24, 5 }, shoes = { 51, 0 } } },
+}
+local BASE_DESNUDO_H = { [1] = 0, [3] = 15, [4] = 21, [5] = 0, [6] = 34, [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15 }
+local BASE_DESNUDO_M = { [1] = 0, [3] = 15, [4] = 15, [5] = 0, [6] = 35, [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15 }
+local CAMPO_COMP = { mask = 1, arms = 3, pants = 4, bags = 5, shoes = 6, chain = 7, tshirt = 8, bproof = 9, decals = 10, torso = 11 }
+local CAMPO_PROP = { helmet = 0, glasses = 1, ears = 2 }
+
+local function PonerUniforme(u)
+    if not EsFreemode() then Avisar("Los uniformes son solo para personajes freemode"); return end
+    local mujer = EsMujer()
+    local d = mujer and u.M or u.H
+    if not d then Avisar(u[1] .. ": no hay versión " .. (mujer and "de mujer" or "de hombre")); return end
+    local f = { modelo = GetEntityModel(PlayerPedId()), comp = {}, prop = {} }
+    for c, n in pairs(mujer and BASE_DESNUDO_M or BASE_DESNUDO_H) do f.comp[c] = { n, 0, 0 } end
+    for k, c in pairs(CAMPO_COMP) do
+        local v = d[k]
+        if type(v) == "number" then v = { v, 0 } end
+        if v then f.comp[c] = { v[1], v[2] or 0, 0 } end
+    end
+    for _, pr in ipairs({ 0, 1, 2 }) do f.prop[pr] = { -1, -1 } end
+    for k, pr in pairs(CAMPO_PROP) do
+        local v = d[k]
+        if v then f.prop[pr] = { v[1], v[2] or 0 } end
+    end
+    AplicarFotoRopa(PlayerPedId(), f)
+    Ropa.Refijar()
+    Citizen.CreateThread(function()
+        Citizen.Wait(400)
+        local q = PlayerPedId()
+        if GetEntityModel(q) ~= f.modelo then return end
+        if #FallosFotoRopa(q, f) > 0 then AplicarFotoRopa(q, f) end
+        Ropa.Refijar()
+    end)
+    Avisar("Uniforme: " .. u[1])
+end
+
+do
+    local pos = #CATEGORIAS_ROPA
+    for i, c in ipairs(CATEGORIAS_ROPA) do if c[1] == "Atuendos" then pos = i + 1 end end
+    table.insert(CATEGORIAS_ROPA, pos, { "Uniformes", function(I)
+        if not EsFreemode() then return AvisoFreemode(I) end
+        local mujer = EsMujer()
+        for _, u in ipairs(UNIFORMES) do
+            local hay = (mujer and u.M or u.H) ~= nil
+            I[#I + 1] = Btn(u[1] .. (hay and "" or " (no disponible)"), function() PonerUniforme(u) end, u[2])
+        end
+    end })
 end
 
 panelCatRopa = { titulo = "Personaje", items = {} }
