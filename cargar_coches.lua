@@ -1,5 +1,6 @@
--- cargar_coches.lua  ·  v10.5
+-- cargar_coches.lua  ·  v10.6
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v10.6: [Copiar ropa] copia todo: cara, rasgos, maquillaje, ojos y forma de andar (con Fijar mi ropa se reponen)
 --   v10.5 (+ reposición inmediata: se vigila en cada frame y los tatuajes se reponen al instante junto a la ropa)
 --   v10.5: [Fijar mi ropa]: se compara con la ropa original del servidor: lo que cambie a propósito (quitar pantalón, ponga lo que ponga) se queda; si solo repone su ropa, se vuelve a poner la tuya (también la copiada)
 --          · los tatuajes (los del menú y los que ya llevas) se vigilan cada segundo y se reponen siempre; se guardan los reales
@@ -1116,7 +1117,7 @@ local PROPS = { 0, 1, 2, 6, 7 }
 -- Muchas prendas a la vez (recarga de ropa del servidor, reaparecer) → se repone todo.
 -- Accesorio caído al hacer ragdoll o caer → se repone.
 Ropa.fijar, Ropa.fija = false, nil
-local AdoptarTatuajes, ReponerTatuajes   -- se definen más abajo, junto a los tatuajes
+local AdoptarTatuajes, ReponerTatuajes, ReponerApariencia   -- se definen más abajo, junto a los tatuajes y la cara
 local ROPA_DE_GOLPE = 5   -- a partir de cuántas prendas cambiadas a la vez se considera un "reseteo"
 
 local function FotoRopa(p)
@@ -1200,6 +1201,7 @@ local function VigilarRopa(p, f)
     if repuestas > 0 then
         -- si el servidor te ha repuesto su ropa, también te habrá quitado los tatuajes: se ponen ya
         if ReponerTatuajes then pcall(ReponerTatuajes, true) end
+        if ReponerApariencia then pcall(ReponerApariencia) end
         if GetGameTimer() - ultimoAviso > 3000 then
             ultimoAviso = GetGameTimer()
             Avisar("Ropa fija: repuestas " .. repuestas .. " prendas")
@@ -1600,9 +1602,17 @@ function ReponerTatuajes(forzar)
 end
 
 Citizen.CreateThread(function()
+    local n = 0
     while true do
         Citizen.Wait(250)
-        if Ropa.fijar then pcall(ReponerTatuajes, false) end
+        if Ropa.fijar then
+            pcall(ReponerTatuajes, false)
+            n = n + 1
+            if n >= 6 and Ropa.andar then                        -- cada ~1,5 s se mantiene la forma de andar
+                n = 0
+                if not IsPedInAnyVehicle(PlayerPedId(), true) then pcall(SetPedMovementClipset, PlayerPedId(), Ropa.andar, 0.0) end
+            end
+        end
     end
 end)
 
@@ -1621,7 +1631,7 @@ local function CambiarModelo(nombre)
     SetPedHeadBlendData(p, 21, 0, 0, 21, 0, 0, 0.5, 0.5, 0.0, false)
     Ropa.cara, Ropa.rasgos, Ropa.detalles, Ropa.ojos = nil, {}, {}, nil
     Ropa.tatuajes, Ropa.vistaTatuaje = {}, {}
-    Ropa.srv = nil
+    Ropa.srv, Ropa.andar = nil, nil
     Ropa.Refijar()
     Ropa.sucio = true
     Avisar("Personaje cambiado")
@@ -1745,6 +1755,107 @@ local CATEGORIAS_CARA = {
 -- Las categorías de la cara van después de "Accesorios" y antes de "Atuendos"
 for k, cat in ipairs(CATEGORIAS_CARA) do table.insert(CATEGORIAS_ROPA, 5 + k, cat) end
 
+-- ── Copiar cara, rasgos, maquillaje, ojos y forma de andar ──
+-- Pone en tu personaje la cara del ped "origen" (freemode) y guarda los valores en Ropa.*
+local function CopiarCaraDe(origen)
+    local p = PlayerPedId()
+    local copiado = 0
+    -- Herencia (padres y piel)
+    local blob = LeerEstructura(0x2746BD9D88C5C5D0, 16, origen)   -- GET_PED_HEAD_BLEND_DATA
+    if blob then
+        local c = { madre = Entero(blob, 0), padre = Entero(blob, 1), pielMadre = Entero(blob, 3),
+                    pielPadre = Entero(blob, 4), parecido = Decimal(blob, 6), mezclaPiel = Decimal(blob, 7) }
+        if c.madre >= 0 and c.madre <= 45 and c.parecido == c.parecido and c.parecido >= 0 and c.parecido <= 1 then
+            Ropa.cara = c
+            AplicarCara()
+            copiado = copiado + 1
+        end
+    end
+    -- Rasgos de la cara (nariz, cejas, pómulos, mandíbula...)
+    if type(GetPedFaceFeature) == "function" then
+        for i = 0, 19 do
+            local ok, v = pcall(GetPedFaceFeature, origen, i)
+            if ok and type(v) == "number" and v == v and v >= -1.01 and v <= 1.01 then
+                Ropa.rasgos[i] = v
+                SetPedFaceFeature(p, i, v + 0.0)
+            end
+        end
+        copiado = copiado + 1
+    end
+    -- Detalles: cejas, barba, maquillaje, pecas, envejecimiento...
+    for _, d in ipairs(DETALLES) do
+        local ok, _, valor, _, color, _, opacidad = pcall(GetPedHeadOverlayData, origen, d[1])
+        if ok and type(valor) == "number" then
+            Ropa.detalles[d[1]] = { valor = (valor == 255) and -1 or valor, color = color or 0,
+                opacidad = (type(opacidad) == "number" and opacidad >= 0 and opacidad <= 1) and opacidad or 1.0 }
+            AplicarDetalle(d[1], d[3])
+        end
+    end
+    -- Color de ojos
+    local okO, ojos = pcall(N_GetOjos, origen)
+    if okO and type(ojos) == "number" and ojos >= 0 and ojos <= 31 then
+        Ropa.ojos = ojos
+        SetPedEyeColor(p, ojos)
+    end
+    return copiado > 0
+end
+
+-- Estilos de andar conocidos (clipsets de movimiento). Se detecta cuál reproduce el otro ped
+local ESTILOS_ANDAR = {
+    "move_m@alien", "move_m@bag", "move_m@bounce", "move_m@brave", "move_m@business@a", "move_m@buzzed",
+    "move_m@caution", "move_m@casual@a", "move_m@casual@b", "move_m@casual@c", "move_m@casual@d",
+    "move_m@casual@e", "move_m@casual@f", "move_m@clipboard", "move_m@confident", "move_m@depressed@a",
+    "move_m@depressed@b", "move_m@drunk@a", "move_m@drunk@moderatedrunk", "move_m@drunk@slightlydrunk",
+    "move_m@drunk@verydrunk", "move_m@fat@a", "move_m@fat@bulky", "move_m@fire", "move_m@flee@a",
+    "move_m@gangster@generic", "move_m@gangster@var_e", "move_m@gangster@var_f", "move_m@gangster@var_i",
+    "move_m@hobo@a", "move_m@hurry@a", "move_m@injured", "move_m@intimidation@1h",
+    "move_m@intimidation@cop@unarmed", "move_m@intimidation@unarmed", "move_m@jogger", "move_m@leaf_blower",
+    "move_m@money", "move_m@multiplayer", "move_m@muscle@a", "move_m@non_chalant", "move_m@posh@",
+    "move_m@power", "move_m@prison_gaurd", "move_m@quick", "move_m@sad@a", "move_m@sassy",
+    "move_m@shadyped@a", "move_m@swagger", "move_m@tool_belt@a", "move_m@tough_guy@",
+    "move_f@arrogant@a", "move_f@chubby@a", "move_f@depressed@a", "move_f@depressed@b", "move_f@fat@a",
+    "move_f@femme@", "move_f@film_reel", "move_f@flee@a", "move_f@gangster@ng", "move_f@handbag",
+    "move_f@heels@c", "move_f@heels@d", "move_f@hurry@a", "move_f@injured", "move_f@jogger",
+    "move_f@maneater", "move_f@multiplayer", "move_f@posh@", "move_f@sad@a", "move_f@sassy",
+    "move_f@scared", "move_f@sexy@a", "move_f@tool_belt@a", "move_f@tough_guy@",
+    "move_characters@michael", "move_characters@franklin", "move_characters@trevor",
+    "move_ped_crouched", "anim_group_move_ballistic", "move_lester_caneup",
+}
+local ANIMS_ANDAR = { "idle", "walk", "run" }
+
+local function DetectarAndar(origen)
+    for _, set in ipairs(ESTILOS_ANDAR) do
+        for _, a in ipairs(ANIMS_ANDAR) do
+            if IsEntityPlayingAnim(origen, set, a, 3) then return set end
+        end
+    end
+    return nil
+end
+
+local function PonerAndar(set)
+    Ropa.andar = set
+    Citizen.CreateThread(function()
+        RequestAnimSet(set)
+        local t = 0
+        while not HasAnimSetLoaded(set) and t < 300 do Citizen.Wait(10); t = t + 1 end
+        if HasAnimSetLoaded(set) then SetPedMovementClipset(PlayerPedId(), set, 0.25) end
+    end)
+end
+
+-- Con "Fijar mi ropa": si el servidor te resetea, vuelven la cara, los ojos y la forma de andar
+function ReponerApariencia()
+    if not Ropa.fijar or not EsFreemode() then
+        if Ropa.fijar and Ropa.andar then PonerAndar(Ropa.andar) end
+        return
+    end
+    local p = PlayerPedId()
+    if Ropa.cara then AplicarCara() end
+    for id, v in pairs(Ropa.rasgos) do SetPedFaceFeature(p, id, v + 0.0) end
+    for _, d in ipairs(DETALLES) do if Ropa.detalles[d[1]] then AplicarDetalle(d[1], d[3]) end end
+    if Ropa.ojos then SetPedEyeColor(p, Ropa.ojos) end
+    if Ropa.andar then PonerAndar(Ropa.andar) end
+end
+
 -- ── Copiar la ropa de otro jugador ────────────────────────
 -- Copia todas las prendas (mochila incluida), accesorios, peinado y color de pelo
 local function CopiarRopaDe(origen, nombre)
@@ -1779,7 +1890,14 @@ local function CopiarRopaDe(origen, nombre)
             extra = " (los tatuajes no se pueden leer aquí)"
         end
     end
-    Avisar("Ropa copiada de " .. nombre .. extra)
+    -- Cara, rasgos, maquillaje y ojos (solo freemode con freemode)
+    if EsFreemode() and (mo == M_FREEMODE or mo == F_FREEMODE) then
+        if CopiarCaraDe(origen) then extra = extra .. " + cara" else extra = extra .. " (la cara no se pudo leer)" end
+    end
+    -- Forma de andar
+    local estilo = DetectarAndar(origen)
+    if estilo then PonerAndar(estilo); extra = extra .. " + andar" else extra = extra .. " (andar: estilo no reconocido, no se cambia)" end
+    Avisar("Copiado de " .. nombre .. extra)
 end
 
 local function CategoriaCopiar(I)
@@ -1798,7 +1916,7 @@ local function CategoriaCopiar(I)
         local sid = GetPlayerServerId(j[1])
         local nombre = (GetPlayerName(j[1]) or "Jugador") .. " [" .. sid .. "]"
         I[#I + 1] = { tipo = "accion", label = nombre, derecha = string.format("%.0f m", j[2]),
-            desc = "Te pone toda su ropa: prendas, mochila, accesorios, peinado, color de pelo y tatuajes.",
+            desc = "Te copia todo: ropa, mochila, accesorios, peinado, color de pelo, tatuajes, cara, rasgos, maquillaje, ojos y forma de andar.",
             fn = function()
                 local pid = GetPlayerFromServerId(sid)
                 local ped = (pid and pid ~= -1) and GetPlayerPed(pid) or 0
