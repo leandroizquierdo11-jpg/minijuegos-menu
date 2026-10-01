@@ -1,5 +1,6 @@
--- cargar_coches.lua  ·  v10.6
+-- cargar_coches.lua  ·  v10.7
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v10.7: [Copiar ropa]: mochila y demás prendas addon se ponen sin comprobar "validez" (antes se saltaban), se verifican, se reintentan y se avisa de las que fallen
 --   v10.6: [Copiar ropa] copia todo: cara, rasgos, maquillaje, ojos y forma de andar (con Fijar mi ropa se reponen)
 --   v10.5 (+ reposición inmediata: se vigila en cada frame y los tatuajes se reponen al instante junto a la ropa)
 --   v10.5: [Fijar mi ropa]: se compara con la ropa original del servidor: lo que cambie a propósito (quitar pantalón, ponga lo que ponga) se queda; si solo repone su ropa, se vuelve a poner la tuya (también la copiada)
@@ -1856,6 +1857,37 @@ function ReponerApariencia()
     if Ropa.andar then PonerAndar(Ropa.andar) end
 end
 
+-- ── Aplicar una "foto" de ropa (la de otro jugador) y comprobar qué ha quedado ──
+local NOMBRE_COMP = { [1] = "Máscara", [2] = "Peinado", [3] = "Brazos", [4] = "Pantalón", [5] = "Mochila",
+    [6] = "Zapatos", [7] = "Cuello", [8] = "Camiseta", [9] = "Chaleco", [10] = "Insignia", [11] = "Chaqueta" }
+local NOMBRE_PROP = { [0] = "Sombrero", [1] = "Gafas", [2] = "Pendientes", [6] = "Reloj", [7] = "Pulsera" }
+
+local function AplicarFotoRopa(p, f)
+    for c, v in pairs(f.comp) do
+        SetPedComponentVariation(p, c, v[1], v[2], v[3] or 0)
+    end
+    for pr, v in pairs(f.prop) do
+        if v[1] < 0 then ClearPedProp(p, pr)
+        else SetPedPropIndex(p, pr, v[1], math.max(v[2], 0), true) end
+    end
+end
+
+local function FallosFotoRopa(p, f)
+    local fallos = {}
+    for c, v in pairs(f.comp) do
+        if GetPedDrawableVariation(p, c) ~= v[1] or GetPedTextureVariation(p, c) ~= v[2] then
+            fallos[#fallos + 1] = (NOMBRE_COMP[c] or ("comp " .. c)) .. " " .. v[1] .. ":" .. v[2]
+        end
+    end
+    for pr, v in pairs(f.prop) do
+        if GetPedPropIndex(p, pr) ~= v[1] then
+            fallos[#fallos + 1] = (NOMBRE_PROP[pr] or ("prop " .. pr)) .. " " .. v[1]
+        end
+    end
+    table.sort(fallos)
+    return fallos
+end
+
 -- ── Copiar la ropa de otro jugador ────────────────────────
 -- Copia todas las prendas (mochila incluida), accesorios, peinado y color de pelo
 local function CopiarRopaDe(origen, nombre)
@@ -1869,13 +1901,25 @@ local function CopiarRopaDe(origen, nombre)
         if GetEntityModel(PlayerPedId()) ~= mo then return end
     end
     local p, f = PlayerPedId(), FotoRopa(origen)
-    for c, v in pairs(f.comp) do
-        if IsPedComponentVariationValid(p, c, v[1], v[2]) then SetPedComponentVariation(p, c, v[1], v[2], v[3] or 0) end
-    end
-    for pr, v in pairs(f.prop) do
-        if v[1] < 0 then ClearPedProp(p, pr)
-        elseif v[1] < GetNumberOfPedPropDrawableVariations(p, pr) then SetPedPropIndex(p, pr, v[1], math.max(v[2], 0), true) end
-    end
+    -- Se pone TODO sin comprobar si "es válido" (la ropa addon del servidor falla esa comprobación aunque se vea bien)
+    AplicarFotoRopa(p, f)
+    -- Se comprueba lo que ha quedado; lo que falle se reintenta y se avisa de qué no se pudo copiar
+    Citizen.CreateThread(function()
+        for intento = 1, 3 do
+            Citizen.Wait(400)
+            local q = PlayerPedId()
+            if not DoesEntityExist(origen) or GetEntityModel(q) ~= f.modelo then return end
+            local fallos = FallosFotoRopa(q, f)
+            if #fallos == 0 then Ropa.Refijar(); return end
+            if intento < 3 then
+                AplicarFotoRopa(q, f)
+            else
+                print("[cargar coches] No se pudo copiar de " .. nombre .. ": " .. table.concat(fallos, ", "))
+                Avisar("No se pudo copiar: " .. table.concat(fallos, ", "))
+            end
+        end
+        Ropa.Refijar()
+    end)
     SetPedHairColor(p, GetPedHairColor(origen), GetPedHairHighlightColor(origen))
     Ropa.Refijar()
     -- Tatuajes: se sustituyen los tuyos por los suyos (solo personajes freemode)
