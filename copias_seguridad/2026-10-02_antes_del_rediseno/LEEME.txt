@@ -1,0 +1,6 @@
+Copia de seguridad completa justo ANTES de rehacer la interfaz con la API de Susano.
+- cargar_coches_v10.12.lua : el script completo (v10.12) con la interfaz anterior.
+- docs/                    : referencia de la API de Susano (extracto de interfaz).
+- interfaz_general.png     : cómo se veía la interfaz.
+- herramienta_*.lua        : los simuladores que uso para probar el script sin el juego.
+Para volver: copia cargar_coches_v10.12.lua encima de cargar_coches.lua.
