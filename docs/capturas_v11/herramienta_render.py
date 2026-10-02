@@ -54,7 +54,7 @@ for c in cmds:
         o.append(f'<text x="{x:.1f}" y="{y+fs*0.95:.1f}" font-size="{fs:.1f}" {bold} font-family="Poppins,Segoe UI,Helvetica,Arial,sans-serif" fill="{col(r,g,b)}" fill-opacity="{a/255:.3f}">{html.escape(t)}</text>')
     elif k=='i':
         _,x,y,w,h,r,g,b,a,tex=c
-        d=base64.b64encode(open(f'{S}/tex_{int(tex)}.bin','rb').read()).decode()
+        d=base64.b64encode(open(os.path.join(os.path.dirname(os.path.abspath(src)), f'tex_{int(tex)}.bin') if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(src)), f'tex_{int(tex)}.bin')) else f'{S}/tex_{int(tex)}.bin','rb').read()).decode()
         o.append(f'<image x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" opacity="{a/255:.3f}" href="data:image/png;base64,{d}"/>')
 while opened>0: o.append('</g>'); opened-=1
 o.append('</svg>')
