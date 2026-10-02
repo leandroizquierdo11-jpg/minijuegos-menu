@@ -1,5 +1,10 @@
--- cargar_coches.lua  ·  v10.12
+-- cargar_coches.lua  ·  v11.0
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v11.0: INTERFAZ NUEVA, TODO CON SUSANO · ventana de cristal oscuro (desenfoque, degradados, sombras, interruptores, sliders con tirador,
+--          scroll con recorte) · ya no se usa el dibujo de GTA (ni DrawRect, ni texto, ni notificaciones, ni DrawMarker, ni contorno):
+--          avisos como tarjetas arriba a la derecha · flechas y aros del mundo y contorno del coche (caja 3D) en el overlay ·
+--          cuadro de texto de la matrícula con el teclado de Susano · errores en pantalla con Susano · cursor con Susano.GetCursorPos
+--          (queda de GTA solo lo que Susano no ofrece: la rueda del ratón y bloquear controles del juego)
 --   v10.12: Superman: antes de levantar un coche se vuelve a comprobar con el mismo criterio (pasajeros y último conductor) · los coches lejanos suben a ≤120 m/s en vez de teletransportarse
 --   v10.11: Superman: solo coge coches que se pueden controlar (vacíos, de NPC o tuyos; salta los que lleva o usó por última vez otro jugador) · radio de búsqueda hasta 1000 m
 --   v10.10: arreglo: la parte de "una sola copia" ya no depende de os/_G (en algunos executors no existen y el script no abría); si falla se desactiva sola
@@ -200,10 +205,9 @@ local R -- render (se define más abajo)
 -- ═════════════════════════════════════════════════════════
 -- UTILIDADES
 -- ═════════════════════════════════════════════════════════
+-- Los avisos se dibujan con Susano (arriba a la derecha), no con las notificaciones del juego
 local function Notificar(msg)
-    SetNotificationTextEntry("STRING")
-    AddTextComponentString(msg)
-    DrawNotification(false, false)
+    if R and R.Aviso then R.Aviso((tostring(msg):gsub("~%a~", ""))) end
 end
 
 local bindPorId = {}
@@ -286,10 +290,9 @@ local function Raycast(desde, hasta, flags, ignorar)
     return hit == 1, fin, ent
 end
 
--- Contorno iluminado. SOLO para vehículos: usarlo en personas puede cerrar el juego.
-local function Contorno(ent, activo)
-    if ent and DoesEntityExist(ent) and IsEntityAVehicle(ent) then SetEntityDrawOutline(ent, activo) end
-end
+-- El contorno del coche apuntado ya no usa el del juego: se dibuja una caja en el overlay de Susano (R.CajaEntidad).
+-- Se deja esta función vacía porque se llama desde varios sitios.
+local function Contorno() end
 
 -- ── La imagen que ves (vale igual con la cámara normal que con la freecam de Susano) ──
 -- Punto del mundo -> pantalla (píxeles). Susano.WorldToScreen usa la vista real que se ve;
@@ -667,7 +670,7 @@ end
 local Menu = { abierto = false, seccion = 1, col = 0, pos = { 1, 1 }, dirSec = 1,
                esperandoTecla = false, aviso = nil, avisoHasta = 0 }
 
-local function Avisar(t) Menu.aviso = t; Menu.avisoHasta = GetGameTimer() + 2200 end
+local function Avisar(t) Menu.aviso = t; Menu.avisoHasta = GetGameTimer() + 2200; if R and R.Aviso then R.Aviso(t) end end
 local function Texto(v) if type(v) == "function" then return v() end return v end
 
 -- Tipos de opción:
@@ -878,25 +881,10 @@ local MATRICULAS = { "Azul sobre blanco 1", "Amarillo sobre negro", "Amarillo so
 local COLORES_XENON = { "De serie", "Blanco", "Azul", "Azul eléctrico", "Verde menta", "Verde lima", "Amarillo",
                         "Dorado", "Naranja", "Rojo", "Rosa poni", "Rosa intenso", "Morado", "Luz negra" }
 
--- Pide un texto con el teclado de GTA (el menú se oculta mientras escribes)
+-- Pide un texto con un cuadro dibujado por Susano (el teclado se lee con Susano.GetAsyncKeyState)
 local function PedirTexto(titulo, inicial, max, cb)
-    Citizen.CreateThread(function()
-        Tuneo.escribiendo = true
-        local estaba = Menu.abierto
-        Menu.abierto = false
-        AddTextEntry("SG_ENTRADA", titulo)
-        DisplayOnscreenKeyboard(1, "SG_ENTRADA", "", inicial or "", "", "", "", max or 8)
-        while UpdateOnscreenKeyboard() == 0 do Citizen.Wait(0) end
-        if UpdateOnscreenKeyboard() == 1 then
-            local r = GetOnscreenKeyboardResult()
-            if r and r ~= "" then cb(r) end
-        end
-        Citizen.Wait(150)
-        -- Vaciar pulsaciones pendientes (Enter/Esc/Retroceso) para que no actúen al volver al menú
-        Teclas.Instantanea()
-        Menu.abierto = estaba
-        Tuneo.escribiendo = false
-    end)
+    Tuneo.escribiendo = true
+    Menu.prompt = { titulo = titulo, texto = inicial or "", max = max or 8, cb = cb, t0 = GetGameTimer() }
 end
 
 local PIEZAS_CARROCERIA = {
@@ -2399,8 +2387,7 @@ local function Paso(txt) print("[cargar coches] control: " .. txt) end
 local function FlechaSobre(ped)
     if not ped or not DoesEntityExist(ped) then return end
     local c = GetEntityCoords(ped)
-    DrawMarker(2, c.x, c.y, c.z + 1.25, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.35, 0.35, 0.35,
-        180, 150, 255, 220, true, true, 2, false, nil, nil, false)
+    R.Flecha(c.x, c.y, c.z + 1.25, 0.71, 0.59, 1.0)
 end
 
 -- NPC al que apuntas con la cámara (no jugadores)
@@ -3099,8 +3086,7 @@ Animac = { obj = nil, animados = {}, ultimaLista = 0, ocupado = false }
 local function Flecha(ped, r, g, b)
     if not ped or not DoesEntityExist(ped) then return end
     local c = GetEntityCoords(ped)
-    DrawMarker(2, c.x, c.y, c.z + 1.25, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.35, 0.35, 0.35,
-        r or 180, g or 150, b or 255, 220, true, true, 2, false, nil, nil, false)
+    R.Flecha(c.x, c.y, c.z + 1.25, (r or 180) / 255, (g or 150) / 255, (b or 255) / 255)
 end
 
 -- Ped del objetivo actual (nil si ya no existe) y si es otro jugador
@@ -3982,17 +3968,11 @@ end
 -- Marcas en el mundo: blanca = a quién apuntas · color del menú + aro = marcado
 local function Marca(p, marcado)
     local c = GetEntityCoords(p)
-    local k = math.max(1.0, math.min(8.0, #(c - GetFinalRenderedCamCoord()) / 20.0))
     if marcado then
         local A = (COLORES[Config.colorMenu] or COLORES[1])[2]
-        local r, g, b = math.floor(A[1] * 255), math.floor(A[2] * 255), math.floor(A[3] * 255)
-        DrawMarker(2, c.x, c.y, c.z + 1.2 + 0.2 * k, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.4 * k, 0.4 * k, 0.4 * k, r, g, b, 235,
-            true, true, 2, false, nil, nil, false)
-        DrawMarker(25, c.x, c.y, c.z - 0.97, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.4, 1.4, 1.0, r, g, b, 200,
-            false, false, 2, false, nil, nil, false)
+        R.Flecha(c.x, c.y, c.z + 1.4, A[1], A[2], A[3], vector3(c.x, c.y, c.z - 0.97))   -- flecha + aro en el suelo
     else
-        DrawMarker(2, c.x, c.y, c.z + 1.2 + 0.2 * k, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.3 * k, 0.3 * k, 0.3 * k, 255, 255, 255, 200,
-            true, true, 2, false, nil, nil, false)
+        R.Flecha(c.x, c.y, c.z + 1.4, 1.0, 1.0, 1.0)
     end
 end
 
@@ -5440,14 +5420,8 @@ TECLAS_TEXTO[0xBE] = { ".", ":" }
 TECLAS_TEXTO[0x6E] = { ".", "." }
 TECLAS_TEXTO[0x6F] = { "/", "/" }
 
-local function ProcesarEscritura()
-    local it = Menu.escribiendo
-    if Pulsada(0x0D) or Pulsada(0x1B) or Pulsada(TECLA_MENU) then
-        Menu.escribiendo = nil
-        Teclas.Instantanea()
-        return
-    end
-    local txt = it.get() or ""
+-- Devuelve el texto después de las pulsaciones de este frame (letras, números, Ctrl+V, Retroceso, Supr)
+function Teclas.Teclear(txt, maximo)
     local nuevo = txt
     local shift, ctrl, alt = Tecla(0x10), Tecla(0x11), Tecla(0x12)
     if ctrl and alt and Pulsada(0x32) then
@@ -5468,8 +5442,35 @@ local function ProcesarEscritura()
         nuevo = nuevo:sub(1, corte - 1)
     end
     if Pulsada(0x2E) then nuevo = "" end                     -- Supr: borrar todo
-    if #nuevo > (it.max or 40) then nuevo = nuevo:sub(1, it.max or 40) end
+    if #nuevo > maximo then nuevo = nuevo:sub(1, maximo) end
+    return nuevo
+end
+
+local function ProcesarEscritura()
+    local it = Menu.escribiendo
+    if Pulsada(0x0D) or Pulsada(0x1B) or Pulsada(TECLA_MENU) then
+        Menu.escribiendo = nil
+        Teclas.Instantanea()
+        return
+    end
+    local txt = it.get() or ""
+    local nuevo = Teclas.Teclear(txt, it.max or 40)
     if nuevo ~= txt then it.set(nuevo) end
+end
+
+-- Cuadro de texto (PedirTexto): Enter acepta, Esc cancela
+function Menu.ProcesarPrompt()
+    local p = Menu.prompt
+    if not p then return end
+    local fin = Pulsada(0x0D) and 1 or (Pulsada(0x1B) and 2 or nil)
+    if fin then
+        Menu.prompt = nil
+        Tuneo.escribiendo = false
+        Teclas.Instantanea()
+        if fin == 1 and p.texto ~= "" then p.cb(p.texto) end
+        return
+    end
+    p.texto = Teclas.Teclear(p.texto, p.max)
 end
 
 -- ── Ratón ─────────────────────────────────────────────────
@@ -5512,7 +5513,7 @@ local function ProcesarRaton()
     if Raton.arrastre then
         if Raton.down then
             local a = Raton.arrastre
-            SliderDesdeRaton(a.item, a.x, a.w, Raton.x)
+            SliderDesdeRaton(a.item, a.x + 12, a.w - 24, Raton.x)
         else
             Raton.arrastre = nil
         end
@@ -5533,7 +5534,7 @@ local function ProcesarRaton()
             Menu.col, Menu.pos[h.panel] = h.panel, h.posSel
             if h.item.tipo == "slider" then
                 Raton.arrastre = { item = h.item, x = h.x, w = h.w }
-                SliderDesdeRaton(h.item, h.x, h.w, Raton.x)
+                SliderDesdeRaton(h.item, h.x + 12, h.w - 24, Raton.x)
             else
                 Activar(h.item)
             end
@@ -9699,8 +9700,12 @@ end
 -- ImGui usa el alto de línea como "tamaño", así que hay que multiplicar para que se vea al tamaño pedido.
 local ESCALA_POPPINS = 1.4
 
-R = { modo = SusanoDisponible() and "susano" or "nativo", sw = 1920, sh = 1080, alpha = 1, ox = 0,
+R = { modo = "susano", ok = SusanoDisponible(), sw = 1920, sh = 1080, alpha = 1, ox = 0,
       fuentes = {}, poppins = false, tex = {},
+      clips = 0,         -- recortes (PushClipRect) abiertos: se cierran solos al acabar el frame
+      toasts = {},       -- avisos en pantalla
+      mundo = {},        -- flechas y aros del mundo (se dibujan en el overlay, no con DrawMarker)
+      errorTxt = nil, errorHasta = 0,
       vacio = false,     -- el último frame enviado a Susano ya estaba vacío (no hace falta repetirlo)
       proxRes = 0,       -- cuándo volver a mirar la resolución
       buffers = {} } -- los datos decodificados se guardan para que Lua no los libere
@@ -9718,29 +9723,15 @@ end
 -- Se vacían solas si crecen demasiado (textos que cambian, como distancias o lo que escribes).
 local anchoCache, anchoN = {}, 0      -- [tabla de anchos][texto] = ancho a tamaño 1
 local recorteCache, recorteN = {}, 0  -- [clave] = texto recortado con "…"
-local nativoCache, nativoN = {}, 0    -- [texto] = texto con los caracteres que GTA sí tiene
 local fuenteCache = {}                -- [estilo][tamaño] = { fuente, tamaño para DrawText }
 local function LimpiarCachesTexto()
-    anchoCache, anchoN, recorteCache, recorteN, nativoCache, nativoN, fuenteCache = {}, 0, {}, 0, {}, 0, {}
-end
-
--- Caracteres que la fuente de GTA no tiene
-local sustituciones = { ["‹"]="<", ["›"]=">", ["…"]="...", ["·"]="-", ["°"]="º", ["~"]="-" }
-local function TextoNativo(t)
-    local r = nativoCache[t]
-    if r then return r end
-    r = t
-    for k, v in pairs(sustituciones) do r = r:gsub(k, v) end
-    nativoN = nativoN + 1
-    if nativoN > 2000 then nativoCache, nativoN = {}, 1 end
-    nativoCache[t] = r
-    return r
+    anchoCache, anchoN, recorteCache, recorteN, fuenteCache = {}, 0, {}, 0, {}
 end
 
 -- Ancho del texto en píxeles. Con Poppins cargada es exacto (tabla de anchos);
 -- si no, una estimación.
 local function Ancho(t, s, estilo)
-    if R.modo == "susano" and R.poppins and utf8 then
+    if R.poppins and utf8 then
         local tabla = ANCHOS[estilo or "normal"] or ANCHOS.normal
         local c = anchoCache[tabla]
         if not c then c = {}; anchoCache[tabla] = c end
@@ -9755,29 +9746,44 @@ local function Ancho(t, s, estilo)
         return w * s
     end
     local n = (utf8 and utf8.len(t)) or #t
-    return n * s * (R.modo == "nativo" and 0.47 or 0.50)
+    return n * s * 0.50
 end
 
 -- Tamaño de la pantalla de juego
 function R.Pantalla() return R.sw, R.sh end
 
+R.gt = { {}, {}, {}, {} }   -- tablas reutilizadas por los degradados
+function R.GradV(x, y, w, h, r1, g1, b1, a1, r2, g2, b2, a2, radio)       -- arriba (1) → abajo (2)
+    local t = R.gt
+    local c1, c2, c3, c4 = t[1], t[2], t[3], t[4]
+    c1[1], c1[2], c1[3], c1[4] = r1, g1, b1, a1
+    c2[1], c2[2], c2[3], c2[4] = r1, g1, b1, a1
+    c3[1], c3[2], c3[3], c3[4] = r2, g2, b2, a2
+    c4[1], c4[2], c4[3], c4[4] = r2, g2, b2, a2
+    R.Grad(x, y, w, h, c1, c2, c3, c4, radio)
+end
+function R.GradH(x, y, w, h, r1, g1, b1, a1, r2, g2, b2, a2, radio)       -- izquierda (1) → derecha (2)
+    local t = R.gt
+    local c1, c2, c3, c4 = t[1], t[2], t[3], t[4]
+    c1[1], c1[2], c1[3], c1[4] = r1, g1, b1, a1
+    c4[1], c4[2], c4[3], c4[4] = r1, g1, b1, a1
+    c2[1], c2[2], c2[3], c2[4] = r2, g2, b2, a2
+    c3[1], c3[2], c3[3], c3[4] = r2, g2, b2, a2
+    R.Grad(x, y, w, h, c1, c2, c3, c4, radio)
+end
+
 function R.Rect(x, y, w, h, r, g, b, a, radio)
-    if w <= 0 or h <= 0 then return end
+    if w <= 0 or h <= 0 or not R.ok then return end
     a = a * R.alpha
     if a <= 0.003 then return end
     x = x + R.ox
     if radio then radio = min(radio, w / 2, h / 2) end
-    if R.modo == "susano" then
-        Susano.DrawRectFilled(x, y, w, h, C(r), C(g), C(b), C(a), radio or 0)
-    else
-        local sw, sh = R.sw, R.sh
-        DrawRect((x + w / 2) / sw, (y + h / 2) / sh, w / sw, h / sh, C(r), C(g), C(b), C(a))
-    end
+    Susano.DrawRectFilled(x, y, w, h, C(r), C(g), C(b), C(a), radio or 0)
 end
 
--- Dibuja una imagen incrustada (solo en el overlay de Susano). Devuelve false si no puede.
+-- Dibuja una imagen incrustada. Devuelve false si no puede.
 function R.Imagen(nombre, x, y, w, h, r, g, b, a)
-    if R.modo ~= "susano" then return false end
+    if not R.ok then return false end
     local tex = R.tex[nombre]
     if not tex or type(Susano.DrawImage) ~= "function" then return false end
     a = a * R.alpha
@@ -9787,28 +9793,119 @@ function R.Imagen(nombre, x, y, w, h, r, g, b, a)
 end
 
 function R.Text(x, y, txt, size, r, g, b, a, centrado, estilo)
-    if not txt or txt == "" then return end
+    if not txt or txt == "" or not R.ok then return end
     a = a * R.alpha
     if a <= 0.003 then return end
     x = x + R.ox
-    if R.modo == "susano" then
-        if centrado then x = x - Ancho(txt, size, estilo) / 2 end
-        local fuente, tam = R.Fuente(estilo, size)
-        if fuente then
-            Susano.DrawText(x, y, txt, tam, C(r), C(g), C(b), C(a), fuente)
-        else
-            Susano.DrawText(x, y, txt, size, C(r), C(g), C(b), C(a))
-        end
+    if centrado then x = x - Ancho(txt, size, estilo) / 2 end
+    local fuente, tam = R.Fuente(estilo, size)
+    if fuente then
+        Susano.DrawText(x, y, txt, tam, C(r), C(g), C(b), C(a), fuente)
     else
-        SetTextFont(estilo == "titulo" and 1 or 4)
-        SetTextScale(0.0, size * 21.0 / R.sh)
-        SetTextColour(C(r), C(g), C(b), C(a))
-        SetTextCentre(centrado and true or false)
-        SetTextWrap(0.0, 1.0)
-        BeginTextCommandDisplayText("STRING")
-        AddTextComponentSubstringPlayerName(TextoNativo(txt))
-        EndTextCommandDisplayText(x / R.sw, (y - size * 0.15) / R.sh)
+        Susano.DrawText(x, y, txt, size, C(r), C(g), C(b), C(a))
     end
+end
+
+-- Texto con sombra suave (se lee sobre cualquier fondo)
+function R.TextS(x, y, txt, size, r, g, b, a, centrado, estilo)
+    R.Text(x + 1, y + 1, txt, size, 0, 0, 0, a * 0.55, centrado, estilo)
+    R.Text(x, y, txt, size, r, g, b, a, centrado, estilo)
+end
+
+-- Cristal esmerilado: desenfoca lo que hay debajo y le pone un tinte (colores 0..1).
+-- Si esta versión de Susano no lo tiene, queda un rectángulo translúcido.
+function R.Blur(x, y, w, h, fuerza, radio, r, g, b, a)
+    if w <= 0 or h <= 0 or not R.ok then return end
+    a = a * R.alpha
+    if a <= 0.003 then return end
+    if type(Susano.DrawBlurRect) ~= "function" then R.Rect(x, y, w, h, r, g, b, a * 0.6, radio); return end
+    radio = radio and min(radio, w / 2, h / 2) or 0
+    Susano.DrawBlurRect(x + R.ox, y, w, h, fuerza or 3, radio, min(max(r, 0), 1), min(max(g, 0), 1), min(max(b, 0), 1), min(a, 1))
+end
+
+-- Degradado en las 4 esquinas: c1 arriba-izq, c2 arriba-der, c3 abajo-der, c4 abajo-izq, cada una { r, g, b, a } (0..1)
+function R.Grad(x, y, w, h, c1, c2, c3, c4, radio)
+    if w <= 0 or h <= 0 or not R.ok then return end
+    local al = R.alpha
+    if type(Susano.DrawRectGradient) ~= "function" then
+        R.Rect(x, y, w, h, (c1[1] + c3[1]) / 2, (c1[2] + c3[2]) / 2, (c1[3] + c3[3]) / 2, (c1[4] + c3[4]) / 2, radio)
+        return
+    end
+    if radio then radio = min(radio, w / 2, h / 2) end
+    Susano.DrawRectGradient(x + R.ox, y, w, h,
+        c1[1], c1[2], c1[3], min(c1[4] * al, 1), c2[1], c2[2], c2[3], min(c2[4] * al, 1),
+        c3[1], c3[2], c3[3], min(c3[4] * al, 1), c4[1], c4[2], c4[3], min(c4[4] * al, 1), radio or 0)
+end
+
+-- Contorno de un rectángulo (sin relleno)
+function R.Borde(x, y, w, h, r, g, b, a, grosor, radio)
+    if w <= 0 or h <= 0 or not R.ok then return end
+    a = a * R.alpha
+    if a <= 0.003 then return end
+    if radio then radio = min(radio, w / 2, h / 2) end
+    Susano.DrawRect(x + R.ox, y, w, h, C(r), C(g), C(b), C(a), grosor or 1, radio or 0)
+end
+
+-- Círculo (relleno o solo contorno), colores 0..1
+function R.Circulo(x, y, radio, lleno, r, g, b, a, grosor)
+    if not R.ok then return end
+    a = a * R.alpha
+    if a <= 0.003 then return end
+    Susano.DrawCircle(x + R.ox, y, radio, lleno and true or false, min(max(r, 0), 1), min(max(g, 0), 1), min(max(b, 0), 1),
+        min(a, 1), grosor or 1, radio > 30 and 64 or 32)
+end
+
+function R.Linea(x1, y1, x2, y2, r, g, b, a, grosor)
+    if not R.ok then return end
+    a = a * R.alpha
+    if a <= 0.003 then return end
+    Susano.DrawLine(x1 + R.ox, y1, x2 + R.ox, y2, min(max(r, 0), 1), min(max(g, 0), 1), min(max(b, 0), 1), min(a, 1), grosor or 1)
+end
+
+-- Recorte: lo que se dibuje hasta R.FinClip() no se sale de este rectángulo
+function R.Clip(x, y, w, h)
+    if not R.ok or type(Susano.PushClipRect) ~= "function" then return false end
+    Susano.PushClipRect(x + R.ox, y, w, h, true)
+    R.clips = R.clips + 1
+    return true
+end
+function R.FinClip()
+    if R.clips > 0 and type(Susano.PopClipRect) == "function" then
+        Susano.PopClipRect()
+        R.clips = R.clips - 1
+    end
+end
+
+-- Sombra suave debajo de un rectángulo (capas translúcidas)
+-- Brillo de color difuminado: círculos concéntricos cada vez más tenues
+function R.Brillo(cx, cy, radio, r, g, b, a)
+    for i = 0, 11 do
+        R.Circulo(cx, cy, radio * (1 - i / 12), true, r, g, b, a / 12)
+    end
+end
+
+function R.Sombra(x, y, w, h, radio, fuerza)
+    fuerza = fuerza or 1
+    for i = 1, 6 do
+        R.Rect(x - i * 3, y - i * 3 + 8, w + i * 6, h + i * 6, 0, 0, 0, 0.055 * fuerza, (radio or 0) + i * 3)
+    end
+end
+
+-- Avisos: aparecen arriba a la derecha unos segundos
+function R.Aviso(txt)
+    if not txt or txt == "" then return end
+    local L, ahora = R.toasts, GetGameTimer()
+    local u = L[#L]
+    if u and u.txt == txt then u.hasta = ahora + 2600; return end
+    L[#L + 1] = { txt = txt, t0 = ahora, hasta = ahora + 2600 }
+    while #L > 5 do table.remove(L, 1) end
+end
+
+-- Flechas del mundo (sobre NPCs y jugadores) y aro en el suelo: se guardan y se dibujan en el overlay
+function R.Flecha(x, y, z, r, g, b, aro)
+    local L = R.mundo
+    if #L > 60 then return end
+    L[#L + 1] = { x = x, y = y, z = z, r = r, g = g, b = b, aro = aro }
 end
 
 function R.TextC(cx, y, txt, size, r, g, b, a, estilo) R.Text(cx, y, txt, size, r, g, b, a, true, estilo) end
@@ -9894,8 +9991,15 @@ function R.CargarRecursos()
     LimpiarCachesTexto()
 end
 
--- Posición del cursor en píxeles de pantalla (cursor de GTA)
+-- Posición del cursor en píxeles: la del propio overlay de Susano (si no la tiene, la del juego)
 function R.PosCursor()
+    if type(Susano) == "table" and type(Susano.GetCursorPos) == "function" then
+        local ok, x, y = pcall(function()
+            local p = Susano.GetCursorPos()
+            return p.x or p[1], p.y or p[2]
+        end)
+        if ok and type(x) == "number" and type(y) == "number" then return x, y end
+    end
     return GetDisabledControlNormal(0, 239) * R.sw, GetDisabledControlNormal(0, 240) * R.sh
 end
 
@@ -9907,26 +10011,14 @@ function R.Begin()
         local sw, sh = GetActiveScreenResolution()
         if sw and sw > 0 then R.sw, R.sh = sw, sh end
     end
-    if R.modo == "susano" then Susano.BeginFrame() end
+    if R.ok then Susano.BeginFrame() end
 end
 
 function R.End()
-    if R.modo == "susano" then Susano.SubmitFrame() end
+    while R.clips > 0 do R.FinClip() end   -- ningún recorte se queda abierto
+    if R.ok then Susano.SubmitFrame() end
 end
 
--- Si el overlay de Susano falla, se sigue dibujando con el texto nativo de GTA (automático, sin opción)
-function R.PasarANativo(motivo)
-    R.vacio = false
-    LimpiarCachesTexto()
-    if type(Susano) == "table" and Susano.ResetFrame then pcall(Susano.ResetFrame) end
-    R.modo = "nativo"
-    print("[cargar coches] Dibujo nativo de GTA (" .. tostring(motivo) .. ")")
-end
-
--- ═════════════════════════════════════════════════════════
--- ANIMACIONES
---   Todo se interpola con Suave(), que no depende de los FPS.
--- ═════════════════════════════════════════════════════════
 local Anim = {
     t = 0, dt = 0.016,
     open = 0,            -- 0 cerrado → 1 abierto
@@ -9950,18 +10042,18 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v10.12"
+local VERSION = "v11.0"
 
 local UI = {
     w = 850, h = 597, lateral = 72,
-    fondo   = { 0.071, 0.071, 0.071 },
-    lateralC = { 0.055, 0.055, 0.055 },
-    panel   = { 0.118, 0.118, 0.118 },
-    caja    = { 0.165, 0.165, 0.165 },
-    cajaFoco = { 0.205, 0.205, 0.205 },
-    texto   = { 0.93, 0.93, 0.93 },
-    gris    = { 0.52, 0.52, 0.54 },
-    icono   = { 0.60, 0.60, 0.62 },
+    fondo   = { 0.060, 0.060, 0.090 },
+    lateralC = { 0.040, 0.040, 0.065 },
+    panel   = { 0.118, 0.118, 0.150 },
+    caja    = { 0.165, 0.165, 0.200 },
+    cajaFoco = { 0.205, 0.205, 0.250 },
+    texto   = { 0.94, 0.94, 0.97 },
+    gris    = { 0.56, 0.57, 0.62 },
+    icono   = { 0.62, 0.63, 0.68 },
 }
 
 local function Acento() return (COLORES[Config.colorMenu] or COLORES[1])[2] end
@@ -9979,65 +10071,11 @@ local function Envolver(txt, max)
     return lineas
 end
 
--- ── Iconos de respaldo (rectángulos) para el modo nativo ──
-local function IconoRect(tipo, cx, cy, c, a)
-    local r, g, b = c[1], c[2], c[3]
-    local F = UI.lateralC
-    if tipo == "coche" then
-        R.Rect(cx - 7, cy - 8, 14, 7, r, g, b, a, 2)          -- cabina
-        R.Rect(cx - 12, cy - 2, 24, 8, r, g, b, a, 2)         -- carrocería
-        R.Rect(cx - 5, cy - 6, 4, 4, F[1], F[2], F[3], a)     -- ventanillas
-        R.Rect(cx + 1, cy - 6, 4, 4, F[1], F[2], F[3], a)
-        R.Rect(cx - 10, cy + 5, 6, 5, r, g, b, a, 2)          -- ruedas
-        R.Rect(cx + 4, cy + 5, 6, 5, r, g, b, a, 2)
-    elseif tipo == "teclado" then
-        R.Rect(cx - 12, cy - 8, 24, 16, r, g, b, a, 3)
-        R.Rect(cx - 10, cy - 6, 20, 12, F[1], F[2], F[3], a, 2)
-        for fila = 0, 1 do
-            for k = 0, 4 do R.Rect(cx - 9 + k * 4, cy - 5 + fila * 4, 3, 2, r, g, b, a) end
-        end
-        R.Rect(cx - 6, cy + 3, 12, 2, r, g, b, a)
-    elseif tipo == "llave" then
-        R.Rect(cx - 12, cy + 2, 16, 5, r, g, b, a, 2)          -- mango
-        R.Rect(cx + 2, cy - 8, 11, 11, r, g, b, a, 5)          -- cabeza
-        R.Rect(cx + 6, cy - 8, 4, 5, F[1], F[2], F[3], a)     -- boca
-    elseif tipo == "ropa" then
-        R.Rect(cx - 8, cy - 8, 16, 18, r, g, b, a, 2)          -- cuerpo
-        R.Rect(cx - 13, cy - 8, 6, 8, r, g, b, a, 2)           -- mangas
-        R.Rect(cx + 7, cy - 8, 6, 8, r, g, b, a, 2)
-        R.Rect(cx - 3, cy - 9, 6, 3, F[1], F[2], F[3], a)     -- cuello
-    elseif tipo == "fantasma" then
-        R.Rect(cx - 10, cy - 11, 20, 20, r, g, b, a, 10)        -- cabeza
-        R.Rect(cx - 10, cy - 1, 20, 12, r, g, b, a)            -- cuerpo
-        R.Rect(cx - 5, cy - 5, 3, 4, F[1], F[2], F[3], a)     -- ojos
-        R.Rect(cx + 2, cy - 5, 3, 4, F[1], F[2], F[3], a)
-    elseif tipo == "ayuda" then
-        R.Rect(cx - 11, cy - 11, 22, 22, r, g, b, a, 11)
-        R.TextC(cx, cy - 10, "?", 17, F[1], F[2], F[3], a, "negrita")
-    elseif tipo == "rayo" then
-        R.Rect(cx - 1, cy - 11, 7, 10, r, g, b, a, 1)          -- parte de arriba
-        R.Rect(cx - 7, cy - 2, 14, 4, r, g, b, a, 1)           -- centro
-        R.Rect(cx - 5, cy + 2, 6, 10, r, g, b, a, 1)           -- parte de abajo
-    elseif tipo == "superman" then
-        R.Rect(cx - 6, cy - 12, 12, 5, r, g, b, a, 2)          -- coche flotando: cabina
-        R.Rect(cx - 11, cy - 8, 22, 7, r, g, b, a, 2)          -- carrocería
-        R.Rect(cx - 9, cy + 1, 18, 2, r, g, b, a, 1)           -- ondas de levitar
-        R.Rect(cx - 6, cy + 5, 12, 2, r, g, b, a, 1)
-        R.Rect(cx - 3, cy + 9, 6, 2, r, g, b, a, 1)
-    elseif tipo == "engranaje" then
-        for _, d in ipairs({ { 0, -9 }, { 0, 9 }, { -9, 0 }, { 9, 0 }, { -6.5, -6.5 }, { 6.5, 6.5 }, { -6.5, 6.5 }, { 6.5, -6.5 } }) do
-            R.Rect(cx + d[1] - 2.5, cy + d[2] - 2.5, 5, 5, r, g, b, a, 1)
-        end
-        R.Rect(cx - 8, cy - 8, 16, 16, r, g, b, a, 8)
-        R.Rect(cx - 3.5, cy - 3.5, 7, 7, UI.fondo[1], UI.fondo[2], UI.fondo[3], a, 3.5)
-    end
-end
-
--- Icono: imagen PNG incrustada, teñida del color pedido; en nativo, rectángulos
+-- Icono: imagen PNG incrustada, teñida del color pedido
 local function Icono(tipo, cx, cy, c, a, tam)
     tam = tam or 26
     if R.Imagen(tipo, cx - tam / 2, cy - tam / 2, tam, tam, c[1], c[2], c[3], a) then return end
-    IconoRect(tipo, cx, cy, c, a)
+    R.Circulo(cx, cy, tam / 3, true, c[1], c[2], c[3], a)            -- si la imagen no se cargó: un punto
 end
 
 -- Distintivo propio (arriba a la izquierda)
@@ -10093,9 +10131,11 @@ local function DibujarItem(it, px, pw, iy, foco, A)
         it._a = it._a and Suave(it._a, activo and 1 or 0, 16) or (activo and 1 or 0)
         local a = it._a
         local rx, rw = px + 12, pw - 24
-        local c = foco and UI.cajaFoco or UI.caja
-        R.Rect(rx, iy, rw, 32, c[1], c[2], c[3], 0.35 + 0.65 * a, 4)
-        if a > 0.02 then R.Rect(rx, iy + 6, 3, 20, A[1], A[2], A[3], a, 1) end
+        R.Rect(rx, iy, rw, 32, 1, 1, 1, (foco and 0.10 or 0.045) + 0.04 * a, 9)
+        if a > 0.02 then
+            R.GradH(rx, iy, rw, 32, A[1], A[2], A[3], 0.24 * a, A[1], A[2], A[3], 0.02 * a, 9)
+            R.Rect(rx, iy + 8, 3, 16, A[1], A[2], A[3], a, 1.5)
+        end
         R.Text(rx + 16 + 4 * a, iy + 6, it.label, 15, Mix(T1[1], A[1], a), Mix(T1[2], A[2], a), Mix(T1[3], A[3], a), 1,
             false, activo and "negrita" or nil)
         R.Text(rx + rw - 16, iy + 5, "›", 16, T1[1], T1[2], T1[3], 0.35 + 0.4 * a)
@@ -10105,25 +10145,21 @@ local function DibujarItem(it, px, pw, iy, foco, A)
         local on = Leer(it) and 1 or 0
         it._a = it._a and Suave(it._a, on, 18) or on
         local a = it._a
-        local bx, by = px + 12, iy + 4
-        local c = foco and UI.cajaFoco or UI.caja
-        R.Rect(bx, by, 22, 22, c[1], c[2], c[3], 1, 5)
-        if a > 0.02 then
-            if R.modo == "susano" then
-                R.Rect(bx - 4, by - 4, 30, 30, A[1], A[2], A[3], 0.10 * a, 7)
-                R.Rect(bx - 2, by - 2, 26, 26, A[1], A[2], A[3], 0.14 * a, 5)
-            end
-            local s = 22 * (0.55 + 0.45 * a)
-            R.Rect(bx + (22 - s) / 2, by + (22 - s) / 2, s, s, A[1], A[2], A[3], a, 3)
-        end
-        R.Text(px + 47, iy + 5, it.label, 15, T1[1], T1[2], T1[3], 1)
-        return px + 6, iy, pw - 12, 30
+        local rx, rw = px + 12, pw - 24
+        if foco then R.Rect(rx, iy, rw, 30, 1, 1, 1, 0.07, 9) end
+        R.Text(rx + 12, iy + 5, it.label, 15, T1[1], T1[2], T1[3], 1)
+        -- interruptor: pista con bola que se desliza
+        local sx, sy = rx + rw - 12 - 40, iy + 5
+        if a > 0.02 then R.Rect(sx - 3, sy - 3, 46, 26, A[1], A[2], A[3], 0.13 * a, 13) end
+        R.Rect(sx, sy, 40, 20, Mix(0.24, A[1], a), Mix(0.25, A[2], a), Mix(0.30, A[3], a), 0.60 + 0.40 * a, 10)
+        R.Circulo(sx + 10 + 20 * a, sy + 10, 7.5, true, 1, 1, 1, 1)
+        return rx, iy, rw, 30
 
     elseif tipo == "slider" or tipo == "lista" or tipo == "bind" then
-        local rx, rw = px + 20, pw - 40
-        local c = foco and UI.cajaFoco or UI.caja
-        R.Rect(rx, iy, rw, 34, c[1], c[2], c[3], 1, 6)
-        R.Text(rx + 12, iy + 8, it.label, 15, T1[1], T1[2], T1[3], 1, false, "negrita")
+        local rx, rw = px + 14, pw - 28
+        R.Rect(rx, iy, rw, 38, 1, 1, 1, foco and 0.10 or 0.050, 10)
+        if foco then R.Borde(rx, iy, rw, 38, A[1], A[2], A[3], 0.55, 1, 10) end
+        R.Text(rx + 12, iy + 6, it.label, 15, T1[1], T1[2], T1[3], 1, false, "negrita")
 
         local valor
         if tipo == "slider" then
@@ -10138,54 +10174,65 @@ local function DibujarItem(it, px, pw, iy, foco, A)
                 valor = it._fs
             end
             local pct = (mx > mn) and Clamp((it._v - mn) / (mx - mn), 0, 1) or 1
-            -- La línea va 3 px hacia dentro para no salirse de las esquinas redondas
-            local lw = max((rw - 6) * pct, 2)
-            R.Rect(rx + 3, iy + 29, lw, 4, A[1], A[2], A[3], 0.18, 2)
-            R.Rect(rx + 3, iy + 31, lw, 2, A[1], A[2], A[3], 1, 1)
+            local tx, tw = rx + 12, rw - 24
+            local lw = max(tw * pct, 0)
+            R.Rect(tx, iy + 29, tw, 4, 1, 1, 1, 0.10, 2)                                   -- pista
+            if lw > 1 then R.GradH(tx, iy + 29, lw, 4, A[1], A[2], A[3], 0.70, A[1], A[2], A[3], 1, 2) end   -- relleno
+            R.Circulo(tx + lw, iy + 31, 9, true, A[1], A[2], A[3], foco and 0.30 or 0.16)  -- brillo
+            R.Circulo(tx + lw, iy + 31, 5.5, true, 1, 1, 1, 1)                             -- tirador
         elseif tipo == "lista" then
             local i = floor(Leer(it) or 1)
             valor = it.opciones[i] or it.opciones[1] or "?"
             if foco then valor = "‹  " .. valor .. "  ›" end
-            R.Rect(rx + 3, iy + 31, rw - 6, 2, A[1], A[2], A[3], 1, 1)
+            R.Rect(rx + 12, iy + 30, rw - 24, 2, A[1], A[2], A[3], foco and 0.9 or 0.45, 1)
         else
             if foco and Menu.esperandoTecla then
                 valor = "Pulsa una tecla"
-                R.Rect(rx + 3, iy + 31, rw - 6, 2, A[1], A[2], A[3], 0.5 + 0.5 * math.sin(Anim.t * 8), 1)
+                R.Rect(rx + 12, iy + 30, rw - 24, 2, A[1], A[2], A[3], 0.5 + 0.5 * math.sin(Anim.t * 8), 1)
             else
                 valor = NombreTecla(it.bind.tecla)
             end
         end
         local maxValor = rw - 24 - Ancho(it.label, 15, "negrita") - 14
         valor = Recortar(valor, 15, max(maxValor, 40))
-        R.Text(rx + rw - 12 - Ancho(valor, 15), iy + 8, valor, 15, T1[1], T1[2], T1[3], 1)
-        return rx, iy, rw, 34
+        local wv = Ancho(valor, 15)
+        if tipo == "bind" then
+            R.Rect(rx + rw - 12 - wv - 10, iy + 4, wv + 20, 22, 1, 1, 1, 0.10, 7)      -- la tecla, dentro de una "ficha"
+            R.Text(rx + rw - 12 - wv, iy + 6, valor, 15, A[1], A[2], A[3], 1)
+        else
+            R.Text(rx + rw - 12 - wv, iy + 6, valor, 15, T1[1], T1[2], T1[3], 1)
+        end
+        return rx, iy, rw, 38
 
     elseif tipo == "campo" then
-        local rx, rw = px + 20, pw - 40
+        local rx, rw = px + 14, pw - 28
         local escribiendo = Menu.escribiendo == it
-        local c = (foco or escribiendo) and UI.cajaFoco or UI.caja
-        R.Rect(rx, iy, rw, 34, c[1], c[2], c[3], 1, 6)
-        if escribiendo then R.Rect(rx + 6, iy + 31, rw - 12, 2, A[1], A[2], A[3], 1, 1) end
+        R.Rect(rx, iy, rw, 38, 1, 1, 1, (foco or escribiendo) and 0.10 or 0.050, 10)
+        if foco or escribiendo then R.Borde(rx, iy, rw, 38, A[1], A[2], A[3], escribiendo and 0.9 or 0.55, 1, 10) end
         local txt = it.get() or ""
         local vacio = txt == ""
         local mostrar = vacio and (escribiendo and "" or (it.placeholder or it.label)) or txt
         local cursor = (escribiendo and floor(GetGameTimer() / 500) % 2 == 0) and "|" or ""
         local maxw = rw - 28
         -- se ve el final del texto (el recorte se guarda mientras no cambie)
-        if it._mEn ~= mostrar or it._mMax ~= maxw or it._mModo ~= R.modo then
+        if it._mEn ~= mostrar or it._mMax ~= maxw then
             local m = mostrar
             while #m > 0 and Ancho(m .. "|", 15) > maxw do m = m:sub(2) end
-            it._mEn, it._mMax, it._mModo, it._mSal = mostrar, maxw, R.modo, m
+            it._mEn, it._mMax, it._mSal = mostrar, maxw, m
         end
         mostrar = it._mSal
         local tc = vacio and not escribiendo and GRIS_CAMPO or T1
-        R.Text(rx + 12, iy + 8, mostrar .. cursor, 15, tc[1], tc[2], tc[3], 1)
-        return rx, iy, rw, 34
+        R.Text(rx + 12, iy + 9, mostrar .. cursor, 15, tc[1], tc[2], tc[3], 1)
+        return rx, iy, rw, 38
 
     elseif tipo == "accion" then
-        local rx, rw = px + 20, pw - 40
-        local c = foco and UI.cajaFoco or UI.caja
-        R.Rect(rx, iy, rw, 34, c[1], c[2], c[3], 1, 6)
+        local rx, rw = px + 14, pw - 28
+        if foco then
+            R.GradH(rx, iy, rw, 36, A[1], A[2], A[3], 0.32, A[1], A[2], A[3], 0.10, 10)
+            R.Borde(rx, iy, rw, 36, A[1], A[2], A[3], 0.65, 1, 10)
+        else
+            R.Rect(rx, iy, rw, 36, 1, 1, 1, 0.060, 10)
+        end
         local tc = foco and A or T1
         local der = it.derecha
         if der then
@@ -10195,7 +10242,7 @@ local function DibujarItem(it, px, pw, iy, foco, A)
         else
             R.TextC(rx + rw / 2, iy + 8, it.label, 15, tc[1], tc[2], tc[3], 1, "negrita")
         end
-        return rx, iy, rw, 34
+        return rx, iy, rw, 36
 
     else -- texto
         R.Text(px + 20, iy + 4, Recortar(Texto(it.label), 14, pw - 40), 14, UI.gris[1] + 0.2, UI.gris[2] + 0.2, UI.gris[3] + 0.2, 1)
@@ -10218,7 +10265,7 @@ local function NuevoHit(tipo, x, y, w, h)
     return t
 end
 
-local ALTO_MAX_PANEL = 424  -- lo que cabe en la ventana; si hay más, el panel hace scroll
+local ALTO_MAX_PANEL = 444  -- lo que cabe en la ventana; si hay más, el panel hace scroll
 
 -- Devuelve el rectángulo de la opción con el foco (x, y, ancho, alto) o nada
 local function DibujarPanel(panel, nPanel, px, py, pw, A, posFoco)
@@ -10235,8 +10282,11 @@ local function DibujarPanel(panel, nPanel, px, py, pw, A, posFoco)
     local visible = alto - 50                       -- zona de opciones (sin título ni margen)
     local maxScroll = max(0, contenido - visible)
 
-    R.Rect(px, py, pw, alto, UI.panel[1], UI.panel[2], UI.panel[3], 1, 10)
-    R.TextC(px + pw / 2, py + 10, panel.titulo, 15, UI.texto[1], UI.texto[2], UI.texto[3], 1)
+    -- Tarjeta de cristal con título
+    R.GradV(px, py, pw, alto, 1, 1, 1, 0.070, 1, 1, 1, 0.030, 14)
+    R.Borde(px, py, pw, alto, 1, 1, 1, 0.075, 1, 14)
+    R.Circulo(px + 20, py + 20, 3.2, true, A[1], A[2], A[3], 1)
+    R.Text(px + 32, py + 11, panel.titulo, 14, UI.texto[1], UI.texto[2], UI.texto[3], 0.85, false, "negrita")
 
     -- Rueda del ratón encima del panel
     panel._scrollObj = panel._scrollObj or 0
@@ -10262,45 +10312,50 @@ local function DibujarPanel(panel, nPanel, px, py, pw, A, posFoco)
     local arriba, abajo = py + 38, py + 38 + visible
     local fx, fy, fw, fh
     local nSel = 0
+    -- Con recorte, las opciones a medio salir se ven cortadas; sin él, solo se dibujan las que caben enteras
+    local recorte = R.Clip(px, arriba, pw, visible)
     for i = 1, nItems do
         local it = items[i]
         local tipo = it.tipo
         local seleccionable = tipo ~= "texto"
         if seleccionable then nSel = nSel + 1 end
         local iy = arriba + posY[i] - scroll
-        -- Solo se dibujan las opciones que caben enteras en la zona visible
-        if iy >= arriba - 2 and iy + ALTO[tipo] - 12 <= abajo + 2 then
+        local entra
+        if recorte then entra = iy + ALTO[tipo] > arriba and iy < abajo
+        else entra = iy >= arriba - 2 and iy + ALTO[tipo] - 12 <= abajo + 2 end
+        if entra then
             local foco = seleccionable and tieneFoco and posFoco == nSel
             local zx, zy, zw, zh = DibujarItem(it, px, pw, iy, foco, A)
             if seleccionable and zx then
-                local h = NuevoHit("item", zx, zy, zw, zh)
-                h.panel, h.posSel, h.item = nPanel, nSel, it
+                -- la zona clicable solo cubre la parte que se ve
+                local y0, y1 = max(zy, arriba), min(zy + zh, abajo)
+                if y1 - y0 > 4 then
+                    local h = NuevoHit("item", zx, y0, zw, y1 - y0)
+                    h.panel, h.posSel, h.item = nPanel, nSel, it
+                end
                 if foco then fx, fy, fw, fh = zx, zy, zw, zh end
             end
         end
     end
+    if recorte then R.FinClip() end
 
     -- Barra de scroll
     if maxScroll > 0 then
         local th = max(visible * visible / contenido, 24)
         local ty = arriba + (visible - th) * (scroll / maxScroll)
-        R.Rect(px + pw - 6, arriba, 2, visible, 1, 1, 1, 0.06, 1)
-        R.Rect(px + pw - 6, ty, 2, th, A[1], A[2], A[3], 0.9, 1)
+        R.Rect(px + pw - 7, arriba, 3, visible, 1, 1, 1, 0.07, 1.5)
+        R.Rect(px + pw - 7, ty, 3, th, A[1], A[2], A[3], 0.9, 1.5)
     end
     return fx, fy, fw, fh
 end
 
 local function DibujarCursor(mx, my)
     if R.Imagen("cursor", mx - 2, my - 2, 26, 26, 1, 1, 1, 1) then return end
-    -- Respaldo: flecha sencilla hecha con líneas de 1 px
-    for i = 0, 13 do
-        local w = (i < 10) and (i + 1) or (13 - i) * 2
-        R.Rect(mx - 1, my + i - 1, w + 2, 1, 0, 0, 0, 0.85)
-    end
-    for i = 0, 11 do
-        local w = (i < 9) and (i * 0.8 + 1) or (12 - i) * 2
-        R.Rect(mx, my + i, w, 1, 1, 1, 1, 1)
-    end
+    -- Respaldo: flecha sencilla hecha con líneas de Susano
+    R.Linea(mx, my, mx, my + 18, 0, 0, 0, 0.9, 5)
+    R.Linea(mx, my, mx + 12, my + 13, 0, 0, 0, 0.9, 5)
+    R.Linea(mx, my, mx, my + 16, 1, 1, 1, 1, 2)
+    R.Linea(mx, my, mx + 10, my + 11, 1, 1, 1, 1, 2)
 end
 
 -- Posición de cada icono de sección respecto a la ventana (las secciones no cambian: se calcula una vez)
@@ -10320,6 +10375,131 @@ local function IconosRel()
     return iconosRel
 end
 local colIcono = { 0, 0, 0 }
+
+-- ── Píldora de cristal (barras del HUD) ──
+function R.Pildora(x, y, w, h, A, progreso)
+    R.Sombra(x, y, w, h, 12, 0.7)
+    R.Blur(x, y, w, h, 3, 12, 0.05, 0.05, 0.09, 0.40)
+    R.GradV(x, y, w, h, 0.115, 0.115, 0.170, 0.93, 0.050, 0.050, 0.080, 0.95, 12)
+    R.Borde(x, y, w, h, 1, 1, 1, 0.10, 1, 12)
+    if progreso and progreso > 0 then
+        R.Rect(x + 12, y + h - 4, (w - 24) * Clamp(progreso, 0, 1), 2, A[1], A[2], A[3], 1, 1)
+    end
+end
+
+-- ── Avisos arriba a la derecha ──
+function R.DibujarAvisos(sw, sh)
+    local L = R.toasts
+    if #L == 0 then return end
+    local ahora, A = GetGameTimer(), Acento()
+    local y = 24
+    for i = #L, 1, -1 do
+        local t = L[i]
+        if ahora >= t.hasta + 250 then
+            table.remove(L, i)
+        else
+            local entra = Clamp((ahora - t.t0) / 200, 0, 1)
+            local sale = Clamp((t.hasta + 250 - ahora) / 250, 0, 1)
+            local a = min(entra, sale)
+            local w = Ancho(t.txt, 14) + 46
+            R.alpha, R.ox = a, (1 - EaseOut(entra)) * 40
+            R.Pildora(sw - 24 - w, y, w, 34, A, nil)
+            R.Rect(sw - 24 - w + 12, y + 9, 3, 16, A[1], A[2], A[3], 1, 1.5)
+            R.Text(sw - 24 - w + 26, y + 8, t.txt, 14, UI.texto[1], UI.texto[2], UI.texto[3], 1)
+            y = y + 42
+        end
+    end
+    R.alpha, R.ox = 1, 0
+end
+
+-- ── Error en pantalla (8 segundos) ──
+function R.DibujarError(sw, sh)
+    if not R.errorTxt then return end
+    if GetGameTimer() > R.errorHasta then R.errorTxt = nil; return end
+    local txt = Recortar(R.errorTxt, 13, sw - 60)
+    local w = Ancho(txt, 13) + 28
+    R.Rect(16, 16, w, 28, 0.35, 0.05, 0.07, 0.88, 9)
+    R.Borde(16, 16, w, 28, 1, 0.31, 0.35, 0.8, 1, 9)
+    R.Text(30, 22, txt, 13, 1, 0.78, 0.80, 1)
+end
+
+-- ── Cuadro de texto (matrícula...) ──
+function R.DibujarPrompt(sw, sh)
+    local p = Menu.prompt
+    if not p then return end
+    local A = Acento()
+    local k = EaseOut((GetGameTimer() - p.t0) / 160)
+    R.alpha = k
+    R.Rect(0, 0, sw, sh, 0, 0, 0, 0.45)
+    local W, H = 460, 168
+    local x, y = floor((sw - W) / 2), floor((sh - H) / 2 + 12 * (1 - k))
+    R.Sombra(x, y, W, H, 16, 1.2)
+    R.Blur(x, y, W, H, 4, 16, 0.05, 0.05, 0.09, 0.50)
+    R.GradV(x, y, W, H, 0.12, 0.12, 0.175, 0.96, 0.05, 0.05, 0.08, 0.98, 16)
+    R.Borde(x, y, W, H, 1, 1, 1, 0.12, 1, 16)
+    R.Circulo(x + 30, y + 32, 3.5, true, A[1], A[2], A[3], 1)
+    R.Text(x + 42, y + 21, p.titulo or "Escribe", 16, UI.texto[1], UI.texto[2], UI.texto[3], 1, false, "negrita")
+    R.Rect(x + 24, y + 60, W - 48, 42, 1, 1, 1, 0.08, 11)
+    R.Borde(x + 24, y + 60, W - 48, 42, A[1], A[2], A[3], 0.85, 1, 11)
+    local cursor = (floor(GetGameTimer() / 500) % 2 == 0) and "|" or ""
+    R.Text(x + 38, y + 71, p.texto .. cursor, 17, UI.texto[1], UI.texto[2], UI.texto[3], 1)
+    R.Text(x + 24, y + 120, "Enter aceptar   ·   Esc cancelar   ·   Supr borra todo", 13, UI.gris[1], UI.gris[2], UI.gris[3], 1)
+    R.Text(x + W - 24 - Ancho(#p.texto .. "/" .. p.max, 13), y + 120, #p.texto .. "/" .. p.max, 13, A[1], A[2], A[3], 1)
+    R.alpha = 1
+end
+
+-- ── Flechas y aros del mundo (antes DrawMarker) ──
+function R.DibujarMundo()
+    local L = R.mundo
+    for i = 1, #L do
+        local m = L[i]
+        local en, sx, sy = Proyectar(m.x, m.y, m.z)
+        if en then
+            -- flecha hacia abajo: contorno oscuro + relleno de color, hecha con filas de 1 px
+            for j = 0, 15 do
+                local w = 22 * (1 - j / 16)
+                R.Rect(sx - w / 2 - 1.5, sy - 30 + j * 1.2 - 1, w + 3, 2.4, 0, 0, 0, 0.55)
+            end
+            for j = 0, 14 do
+                local w = 18 * (1 - j / 15)
+                R.Rect(sx - w / 2, sy - 29 + j * 1.2, w, 1.4, m.r, m.g, m.b, 1)
+            end
+            if m.aro then
+                local ea, ax, ay = Proyectar(m.aro.x, m.aro.y, m.aro.z)
+                if ea then
+                    R.Circulo(ax, ay, 26, false, 0, 0, 0, 0.5, 4)
+                    R.Circulo(ax, ay, 26, false, m.r, m.g, m.b, 0.95, 2)
+                end
+            end
+        end
+        L[i] = nil
+    end
+end
+
+-- ── Contorno del coche apuntado: caja 3D en el overlay ──
+function R.CajaEntidad(e, A)
+    local mn, mx = GetModelDimensions(GetEntityModel(e))
+    local P = R.caja or {}
+    R.caja = P
+    local n = 0
+    for xi = 0, 1 do for yi = 0, 1 do for zi = 0, 1 do
+        local w = GetOffsetFromEntityInWorldCoords(e, xi == 0 and mn.x or mx.x, yi == 0 and mn.y or mx.y, zi == 0 and mn.z or mx.z)
+        local en, sx, sy = Proyectar(w.x, w.y, w.z)
+        n = n + 1
+        P[n] = en and { sx, sy } or false
+    end end end
+    for a = 0, 7 do
+        for _, bit in ipairs({ 1, 2, 4 }) do
+            if a & bit == 0 then
+                local p1, p2 = P[a + 1], P[a + bit + 1]
+                if p1 and p2 then
+                    R.Linea(p1[1], p1[2], p2[1], p2[2], A[1], A[2], A[3], 0.25, 5)
+                    R.Linea(p1[1], p1[2], p2[1], p2[2], A[1], A[2], A[3], 0.95, 2)
+                end
+            end
+        end
+    end
+end
 
 local function DibujarMenu(sw, sh)
     local e = EaseOut(Anim.open)
@@ -10342,19 +10522,29 @@ local function DibujarMenu(sw, sh)
     NuevoHit("mover", x + UI.lateral, y, W - UI.lateral - 70, 90)
     R.alpha, R.ox = e, 0
 
-    -- Ventana y barra lateral
-    local RADIO = 12
-    R.Rect(x, y, W, H, UI.fondo[1], UI.fondo[2], UI.fondo[3], 0.985, RADIO)
-    R.Rect(x, y, UI.lateral, H, UI.lateralC[1], UI.lateralC[2], UI.lateralC[3], 1, RADIO)
-    -- tapa las esquinas redondas del lado derecho de la barra lateral (ese lado va recto)
-    R.Rect(x + UI.lateral - RADIO, y, RADIO, H, UI.lateralC[1], UI.lateralC[2], UI.lateralC[3], 1)
+    -- ── Ventana: cristal oscuro con sombra, brillo de color y borde fino ──
+    local RADIO = 16
+    R.Sombra(x, y, W, H, RADIO, 1)
+    R.Blur(x, y, W, H, 4, RADIO, 0.05, 0.05, 0.09, 0.45)
+    R.GradV(x, y, W, H, 0.115, 0.115, 0.170, 0.94, 0.045, 0.045, 0.075, 0.97, RADIO)
+    if R.Clip(x, y, W, H) then
+        R.Brillo(x + W - 130, y + 20, 260, A[1], A[2], A[3], 0.22)
+        R.Brillo(x + 280, y + H + 60, 280, A[1], A[2], A[3], 0.14)
+        R.FinClip()
+    end
+    R.Borde(x, y, W, H, 1, 1, 1, 0.11, 1, RADIO)
+
+    -- Barra lateral (opaca, con las esquinas del lado izquierdo redondas)
+    local F = UI.lateralC
+    R.Rect(x, y, UI.lateral, H, F[1], F[2], F[3], 1, RADIO)
+    R.Rect(x + UI.lateral - RADIO, y, RADIO, H, F[1], F[2], F[3], 1)
+    R.Rect(x + UI.lateral, y + 16, 1, H - 32, 1, 1, 1, 0.07)
 
     Logo(x + 36, y + 38)
 
     -- Iconos de sección (barra lateral)
     local sec = SeccionActual()
     local iconos = IconosRel()
-    -- Resalte de la barra lateral cuando tiene el foco del teclado (se desliza)
     for k = 1, #iconos do
         local ic = iconos[k]
         if ic.i == Menu.seccion then
@@ -10367,68 +10557,61 @@ local function DibujarMenu(sw, sh)
     if Anim.lateralY then
         local lx, ly = x + Anim.lateralX, y + Anim.lateralY
         if Anim.lateralX < UI.lateral then
-            -- Barra de acento pegada al borde izquierdo (se desliza entre secciones)
-            R.Rect(x, ly - 16, 3, 32, A[1], A[2], A[3], 1, 1)
+            R.Rect(x, ly - 16, 3, 32, A[1], A[2], A[3], 1, 1.5)                          -- barra de color pegada al borde
         end
-        if Menu.col == 0 then
-            R.Rect(lx - 22, ly - 20, 44, 40, 1, 1, 1, 0.05, 8)
-        end
+        R.Rect(lx - 22, ly - 22, 44, 44, A[1], A[2], A[3], Menu.col == 0 and 0.22 or 0.13, 13)  -- fondo del icono activo
     end
     local IC = UI.icono
     for k = 1, #iconos do
         local ic = iconos[k]
         local cx, cy = x + ic.dx, y + ic.dy
         local activo = (ic.i == Menu.seccion)
-        local s = Secciones[ic.i]
-        s._a = s._a and Suave(s._a, activo and 1 or 0, 14) or (activo and 1 or 0)
-        colIcono[1], colIcono[2], colIcono[3] = Mix(IC[1], A[1], s._a), Mix(IC[2], A[2], s._a), Mix(IC[3], A[3], s._a)
-        Icono(s.icono, cx, cy, colIcono, 1, s.engranaje and 22 or 24)
-        NuevoHit("seccion", cx - 22, cy - 20, 44, 40).i = ic.i
+        local s2 = Secciones[ic.i]
+        s2._a = s2._a and Suave(s2._a, activo and 1 or 0, 14) or (activo and 1 or 0)
+        colIcono[1], colIcono[2], colIcono[3] = Mix(IC[1], A[1], s2._a), Mix(IC[2], A[2], s2._a), Mix(IC[3], A[3], s2._a)
+        Icono(s2.icono, cx, cy, colIcono, 1, s2.engranaje and 22 or 24)
+        NuevoHit("seccion", cx - 22, cy - 22, 44, 44).i = ic.i
     end
 
     -- Contenido de la sección (entra deslizando al cambiar)
     R.ox = (1 - Anim.contenido) * 26 * Anim.dirTab
     R.alpha = e * Anim.contenido
 
-    -- Ruta: "Sección > Subsección"
-    local ruta1 = sec._ruta
-    if not ruta1 then ruta1 = sec.nombre .. "  >  "; sec._ruta = ruta1 end
-    R.Text(x + 104, y + 28, ruta1, 15, UI.texto[1], UI.texto[2], UI.texto[3], 1)
-    R.Text(x + 104 + Ancho(ruta1, 15), y + 28, Texto(sec.sub), 15, A[1], A[2], A[3], 1)
+    -- Cabecera: ruta pequeña, título grande y línea de color
+    R.Text(x + 98, y + 22, sec.nombre, 13, UI.gris[1], UI.gris[2], UI.gris[3], 1)
+    R.Text(x + 98, y + 40, Texto(sec.sub), 22, UI.texto[1], UI.texto[2], UI.texto[3], 1, false, "negrita")
+    R.GradH(x + 98, y + 82, W - 98 - 34, 2, A[1], A[2], A[3], 0.75, A[1], A[2], A[3], 0.0, 1)
 
     -- Paneles (dos columnas)
     local ffx, ffy, ffw, ffh
     local paneles = sec.paneles
     local p1, p2 = paneles[1], paneles[2]
     if p1 then
-        local fx, fy, fw, fh = DibujarPanel(p1, 1, x + 103, y + 123, 342, A, Menu.pos[1])
+        local fx, fy, fw, fh = DibujarPanel(p1, 1, x + 96, y + 104, 354, A, Menu.pos[1])
         if Menu.col == 1 then ffx, ffy, ffw, ffh = fx, fy, fw, fh end
         if p2 then
-            fx, fy, fw, fh = DibujarPanel(p2, 2, x + 456, y + 123, 342, A, Menu.pos[2])
+            fx, fy, fw, fh = DibujarPanel(p2, 2, x + 462, y + 104, 354, A, Menu.pos[2])
             if Menu.col == 2 then ffx, ffy, ffw, ffh = fx, fy, fw, fh end
         end
     end
 
     -- Marca de foco del teclado (se desliza entre opciones y paneles)
     if ffx then
-        -- Posición relativa a la ventana: la marca se mueve con ella al arrastrarla
         local fx, fy = ffx - x, ffy - y
-        local F = Anim.foco
-        if not F then F = { x = fx, y = fy, w = ffw, h = ffh }; Anim.foco = F end
-        F.x, F.y = Suave(F.x, fx, 20), Suave(F.y, fy, 20)
-        F.w, F.h = Suave(F.w, ffw, 20), Suave(F.h, ffh, 20)
-        R.Rect(x + F.x - 6, y + F.y + 4, 2, F.h - 8, A[1], A[2], A[3], 1, 1)
+        local Fo = Anim.foco
+        if not Fo then Fo = { x = fx, y = fy, w = ffw, h = ffh }; Anim.foco = Fo end
+        Fo.x, Fo.y = Suave(Fo.x, fx, 20), Suave(Fo.y, fy, 20)
+        Fo.w, Fo.h = Suave(Fo.w, ffw, 20), Suave(Fo.h, ffh, 20)
+        R.Rect(x + Fo.x - 8, y + Fo.y + 6, 3, Fo.h - 12, A[1], A[2], A[3], 1, 1.5)
+        R.Rect(x + Fo.x - 10, y + Fo.y + 4, 7, Fo.h - 8, A[1], A[2], A[3], 0.18, 3.5)
     else
         Anim.foco = nil
     end
 
-    -- Barra de estado: descripción / avisos
+    -- Barra de estado: descripción de la opción con el foco
     local it = ItemFoco()
-    local restante = Menu.avisoHasta - GetGameTimer()
-    local texto, c = nil, UI.gris
-    if Menu.aviso and restante > 0 then
-        texto, c = Menu.aviso, AMARILLO_AVISO
-    elseif Menu.esperandoTecla then
+    local texto
+    if Menu.esperandoTecla then
         texto = "Pulsa la tecla nueva. Esc para cancelar."
     elseif Menu.escribiendo then
         texto = "Escribiendo (el juego no recibe el teclado)  ·  Enter o Esc para terminar  ·  Supr borra todo"
@@ -10436,19 +10619,23 @@ local function DibujarMenu(sw, sh)
         texto = it.desc
         if type(texto) == "function" then texto = texto() end
     end
+    texto = texto or "Flechas: moverte   ·   Enter: elegir   ·   Esc: atrás   ·   " .. NombreTecla(TECLA_MENU) .. ": cerrar"
     local clave = texto or ""
     if clave ~= Anim.descIdx then Anim.descIdx, Anim.descA = clave, 0 end
     Anim.descA = Suave(Anim.descA, 1, 14)
+    R.alpha, R.ox = e, 0
+    R.Rect(x + 96, y + H - 46, W - 96 - 34, 30, 1, 1, 1, 0.045, 11)
     if texto then
         R.alpha = e * Anim.descA
         R.ox = (1 - Anim.descA) * 8
-        R.Text(x + 104, y + H - 34, PrimeraLinea(texto), 13, c[1], c[2], c[3], 1)
+        R.Circulo(x + 112, y + H - 31, 3, true, A[1], A[2], A[3], 1)
+        R.Text(x + 124, y + H - 40, PrimeraLinea(texto), 13, UI.gris[1] + 0.2, UI.gris[2] + 0.2, UI.gris[3] + 0.2, 1)
     end
     R.alpha, R.ox = e, 0
-    R.Text(x + W - 18 - Ancho(VERSION, 12), y + H - 33, VERSION, 12, UI.gris[1], UI.gris[2], UI.gris[3], 0.7)
+    R.Text(x + W - 30 - Ancho(VERSION, 12), y + H - 38, VERSION, 12, UI.gris[1], UI.gris[2], UI.gris[3], 0.8)
 
     -- Cursor propio en el overlay (el de GTA quedaría tapado por la ventana)
-    if R.modo == "susano" and Menu.abierto then DibujarCursor(Raton.x, Raton.y) end
+    if Menu.abierto then DibujarCursor(Raton.x, Raton.y) end
 
     R.alpha, R.ox = 1, 0
 end
@@ -10474,11 +10661,10 @@ local function DibujarHUDJuego(sw, sh)
     local A = Acento()
 
     R.alpha = Anim.hud
-    local w = Ancho(linea, 14) + 36
-    local x, y = sw / 2 - w / 2, sh - 72
-    R.Rect(x, y, w, 30, UI.fondo[1], UI.fondo[2], UI.fondo[3], 0.92, 10)
-    R.Rect(x, y + 28, w, 2, A[1], A[2], A[3], activo and 1 or 0.35)
-    R.TextC(sw / 2, y + 7, linea, 14, UI.texto[1], UI.texto[2], UI.texto[3], activo and 1 or 0.65)
+    local w = Ancho(linea, 14) + 40
+    local x, y = sw / 2 - w / 2, sh - 76
+    R.Pildora(x, y, w, 34, A, activo and 1 or 0.25)
+    R.TextC(sw / 2, y + 8, linea, 14, UI.texto[1], UI.texto[2], UI.texto[3], activo and 1 or 0.65)
     R.alpha = 1
 end
 
@@ -10491,11 +10677,10 @@ function Super.Dibujar(sw, sh)
     if not linea or linea == "" then return end
     local A = Acento()
     local max = math.max(math.floor(Config.supermanMax + 0.5), 1)
-    local w = Ancho(linea, 14) + 36
-    local x, y = sw / 2 - w / 2, sh - (dibujarHud and 112 or 72)
-    R.Rect(x, y, w, 30, UI.fondo[1], UI.fondo[2], UI.fondo[3], 0.92, 10)
-    R.Rect(x, y + 28, w * Clamp(Super.nArriba / max, 0, 1), 2, A[1], A[2], A[3], 1)
-    R.TextC(sw / 2, y + 7, linea, 14, UI.texto[1], UI.texto[2], UI.texto[3], 1)
+    local w = Ancho(linea, 14) + 40
+    local x, y = sw / 2 - w / 2, sh - (dibujarHud and 120 or 76)
+    R.Pildora(x, y, w, 34, A, Super.nArriba / max)
+    R.TextC(sw / 2, y + 8, linea, 14, UI.texto[1], UI.texto[2], UI.texto[3], 1)
 end
 
 local function DibujarDentro()
@@ -10503,9 +10688,14 @@ local function DibujarDentro()
     R.alpha, R.ox = 1, 0
     local w, h = R.Pantalla()
     Extras.DibujarMarcas()
+    R.DibujarMundo()
+    if Config.contorno and apuntado and DoesEntityExist(apuntado) then R.CajaEntidad(apuntado, Acento()) end
     if Super.activo then Super.Dibujar(w, h) end
     if dibujarHud then DibujarHUDJuego(w, h) end
     if Anim.open > 0 then DibujarMenu(w, h) end
+    if Menu.prompt then R.DibujarPrompt(w, h) end
+    R.DibujarAvisos(w, h)
+    R.DibujarError(w, h)
 end
 
 local function DibujarTodo()
@@ -10515,7 +10705,8 @@ local function DibujarTodo()
     if Anim.open < 0.002 then Anim.open = 0 end
     Anim.hud = Suave(Anim.hud, Menu.abierto and 0.0 or 1.0, 10)
     dibujarHud = (Config.ayudaHud or Pos.activo) and Anim.hud >= 0.01
-    local hay = dibujarHud or Anim.open > 0 or Extras.hayMarcas or Super.activo
+    local hay = dibujarHud or Anim.open > 0 or Extras.hayMarcas or Super.activo or #R.mundo > 0 or #R.toasts > 0
+        or Menu.prompt ~= nil or R.errorTxt ~= nil or (Config.contorno and apuntado ~= nil)
 
     -- Menú cerrado y sin ayuda en pantalla: una vez enviado un frame vacío, no se toca el overlay
     if not hay and R.vacio then return end
@@ -10526,11 +10717,9 @@ local function DibujarTodo()
     R.vacio = not hay
     if not ok then
         R.vacio = false
-        if R.modo == "susano" then
+        if err ~= R.ultimoErrorDibujo then
+            R.ultimoErrorDibujo = err
             print("[cargar coches] Error dibujando con Susano: " .. tostring(err))
-            R.PasarANativo("fallo del overlay")
-        else
-            error(err, 0)
         end
     end
 end
@@ -10618,7 +10807,7 @@ local function Frame()
     Teclas.NuevoFrame()
 
     -- Escribiendo con el teclado de GTA (p. ej. la matrícula): no procesar teclas
-    if Tuneo.escribiendo then Super.Frame(ped, false, false); DibujarTodo(); return end
+    if Tuneo.escribiendo then Menu.ProcesarPrompt(); Super.Frame(ped, false, false); DibujarTodo(); return end
 
     local p2 = Menu.abierto and SeccionActual().paneles[2] or nil
     if p2 == panelOpciones then ActualizarTuneo()
@@ -10682,15 +10871,6 @@ end
 
 -- Muestra el último error con texto nativo (se ve aunque falle el overlay)
 local ultimoError = nil
-local function MostrarError()
-    if not ultimoError then return end
-    SetTextFont(4); SetTextScale(0.4, 0.4); SetTextColour(255, 80, 80, 255)
-    SetTextOutline(); SetTextWrap(0.0, 0.98)
-    BeginTextCommandDisplayText("STRING")
-    AddTextComponentSubstringPlayerName("[cargar coches] " .. tostring(ultimoError))
-    EndTextCommandDisplayText(0.02, 0.02)
-end
-
 -- Lo que hace esta copia al ser sustituida por otra: dejar todo como estaba
 Citizen.Limpieza = function()
     print("[cargar coches] Copia anterior descargada")
@@ -10708,7 +10888,6 @@ end
 Citizen.CreateThread(function()
     -- Si había otra copia, se le da un momento para que se descargue antes de empezar a dibujar
     if Citizen.HABIA_OTRA then Citizen.Real.Wait(500) end
-    pcall(SetEntityDrawOutlineColor, table.unpack(Config.colorContorno))
     local okRec, errRec = pcall(R.CargarRecursos)
     if not okRec then print("[cargar coches] No se pudieron cargar los recursos: " .. tostring(errRec)) end
     -- Las imágenes y fuentes ya están cargadas: el texto base64 ya no hace falta (libera memoria)
@@ -10743,8 +10922,8 @@ Citizen.CreateThread(function()
         local ok, err = pcall(Frame)
         if not ok and err ~= ultimoError then
             ultimoError = err
+            R.errorTxt, R.errorHasta = "[cargar coches] " .. tostring(err), GetGameTimer() + 8000
             print("[cargar coches] ERROR: " .. tostring(err))
         end
-        MostrarError()
     end
 end)

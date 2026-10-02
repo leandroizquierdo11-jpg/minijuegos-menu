@@ -1,0 +1,2 @@
+Capturas aproximadas de la interfaz v11.0 (render de las órdenes de dibujo de Susano; fondo y fuente simulados).
+herramienta_captura.lua + herramienta_render.py: cómo se generan (simulador del juego + conversor a imagen).
