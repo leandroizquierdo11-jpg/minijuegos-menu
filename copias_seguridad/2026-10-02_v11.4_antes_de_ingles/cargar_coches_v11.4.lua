@@ -1,10 +1,5 @@
--- cargar_coches.lua  ·  Surge v11.5
+-- cargar_coches.lua  ·  Surge v11.4
 -- Script para FiveM usando la API de Susano (susano.re)
---   v11.5: MENÚ EN INGLÉS · barra lateral plegable (clic en un apartado lo abre y otro clic lo cierra) con animación ·
---          selección, pestañas y foco que se deslizan · al cerrar con la tecla del menú todo se desvanece a la vez
---          (colores a 0..1: DrawImage no entendía 0..255 y los iconos no se iban) · herramientas de la freecam con la
---          rueda (copiar ropa, traerme aquí, coger coche, fuegos) · recuadro de cuerpo entero en vez del aro del pie ·
---          buscador sin ejemplos
 --   v11.4: SURGE · nombre y logo nuevos · interfaz en blanco y negro, plana y ligera (iconos de línea, esquinas casi rectas,
 --          sin degradados ni brillos) · selector de color (cuadro, tono, transparencia, hex, pegar / copiar, colores rápidos)
 --          para el coche, las flechas, el contorno y el acento · la tecla de cada opción va a su lado (y se le puede poner
@@ -164,37 +159,37 @@ local Config = {
 local Guardado = { pendiente = false }
 
 local binds = {
-    { id = "agarrar", nombre = "Grab / Drop", tecla = 0x48 }, -- H
-    { id = "lanzar",  nombre = "Throw",         tecla = 0x47 }, -- G
-    { id = "poseer",  nombre = "Control NPC",  tecla = 0x4A }, -- J
-    { id = "volver",  nombre = "Stop controlling", tecla = 0x4B }, -- K
-    { id = "pararAnim", nombre = "Stop animation", tecla = 0x58 }, -- X
-    { id = "agua",    nombre = "Spray water (hold)", tecla = 0x59 }, -- Y
-    { id = "fijarAgua", nombre = "Mark / unmark (water and Superman)", tecla = 0x04 }, -- clic rueda
-    { id = "superRecoger", nombre = "Superman: pull in / lower cars", tecla = 0x4C }, -- L
-    { id = "superLanzar",  nombre = "Superman: throw",                 tecla = 0x47 }, -- G
-    { id = "superOrbitar", nombre = "Superman: orbit the target",    tecla = 0x4F }, -- O
-    { id = "superMontar", nombre = "Superman: force control (get in)", tecla = 0x4D }, -- M
-    { id = "freecam", nombre = "Freecam (on / off)", tecla = 0x75 }, -- F6
-    { id = "volar",   nombre = "Fly (take off / land)", tecla = 0x76 }, -- F7
-    { id = "caerse",  nombre = "Drop to the floor", tecla = 0x55 }, -- U
-    { id = "nitro",   nombre = "Nitro (hold)", tecla = 0xA0 }, -- Shift izquierdo
-    { id = "saltoCoche", nombre = "Car jump", tecla = 0x4E }, -- N
-    { id = "menu",    nombre = "Open / close the menu", tecla = 0x79 }, -- F10
+    { id = "agarrar", nombre = "Coger / Soltar", tecla = 0x48 }, -- H
+    { id = "lanzar",  nombre = "Lanzar",         tecla = 0x47 }, -- G
+    { id = "poseer",  nombre = "Controlar NPC",  tecla = 0x4A }, -- J
+    { id = "volver",  nombre = "Dejar de controlar", tecla = 0x4B }, -- K
+    { id = "pararAnim", nombre = "Parar animación", tecla = 0x58 }, -- X
+    { id = "agua",    nombre = "Echar agua (mantener)", tecla = 0x59 }, -- Y
+    { id = "fijarAgua", nombre = "Marcar / desmarcar (agua y Superman)", tecla = 0x04 }, -- clic rueda
+    { id = "superRecoger", nombre = "Superman: recoger / bajar coches", tecla = 0x4C }, -- L
+    { id = "superLanzar",  nombre = "Superman: lanzar",                 tecla = 0x47 }, -- G
+    { id = "superOrbitar", nombre = "Superman: orbitar en objetivo",    tecla = 0x4F }, -- O
+    { id = "superMontar", nombre = "Superman: forzar control (montarse)", tecla = 0x4D }, -- M
+    { id = "freecam", nombre = "Freecam (activar / desactivar)", tecla = 0x75 }, -- F6
+    { id = "volar",   nombre = "Volar (despegar / aterrizar)", tecla = 0x76 }, -- F7
+    { id = "caerse",  nombre = "Caerse al suelo", tecla = 0x55 }, -- U
+    { id = "nitro",   nombre = "Nitro (mantener)", tecla = 0xA0 }, -- Shift izquierdo
+    { id = "saltoCoche", nombre = "Salto con el coche", tecla = 0x4E }, -- N
+    { id = "menu",    nombre = "Abrir / cerrar el menú", tecla = 0x79 }, -- F10
 }
 
 -- ═════════════════════════════════════════════════════════
 -- NOMBRES DE TECLAS
 -- ═════════════════════════════════════════════════════════
 local nombresTeclas = {
-    [0x04]="Mouse 3", [0x05]="Mouse 4", [0x06]="Mouse 5",
-    [0x08]="Backspace", [0x09]="Tab", [0x0D]="Enter", [0x10]="Shift", [0x11]="Ctrl",
-    [0x12]="Alt", [0x14]="Caps", [0x1B]="Esc", [0x20]="Space",
-    [0x21]="PgUp", [0x22]="PgDn", [0x23]="End", [0x24]="Home",
-    [0x25]="Left", [0x26]="Up", [0x27]="Right", [0x28]="Down", [0x2D]="Insert", [0x2E]="Del",
+    [0x04]="Clic rueda", [0x05]="Ratón X1", [0x06]="Ratón X2",
+    [0x08]="Retroceso", [0x09]="Tab", [0x0D]="Enter", [0x10]="Shift", [0x11]="Ctrl",
+    [0x12]="Alt", [0x14]="Bloq Mayús", [0x1B]="Esc", [0x20]="Espacio",
+    [0x21]="RePág", [0x22]="AvPág", [0x23]="Fin", [0x24]="Inicio",
+    [0x25]="Izquierda", [0x26]="Arriba", [0x27]="Derecha", [0x28]="Abajo", [0x2D]="Insert", [0x2E]="Supr",
     [0x6A]="NUM*", [0x6B]="NUM+", [0x6D]="NUM-", [0x6E]="NUM.", [0x6F]="NUM/",
-    [0xA0]="LShift", [0xA1]="RShift", [0xA2]="LCtrl", [0xA3]="RCtrl",
-    [0xA4]="LAlt", [0xA5]="RAlt",
+    [0xA0]="Shift Izq", [0xA1]="Shift Der", [0xA2]="Ctrl Izq", [0xA3]="Ctrl Der",
+    [0xA4]="Alt Izq", [0xA5]="Alt Der",
 }
 for i = 0, 9  do nombresTeclas[0x30 + i] = tostring(i) end
 for i = 0, 9  do nombresTeclas[0x60 + i] = "NUM" .. i end
@@ -211,12 +206,12 @@ local vehiculo = nil   -- coche que llevamos
 local apuntado = nil   -- coche resaltado
 local Cam = { activa = false }   -- freecam propia (con Susano.LockCameraPos / SetCameraPos)
 local Diver = { prev = {},       -- poderes, coche loco y efectos (más abajo)
-    CLIMAS = { "From the server", "Sunny", "Clear", "Cloudy", "Rain", "Storm", "Fog", "Snow", "Halloween" },
+    CLIMAS = { "Del servidor", "Soleado", "Despejado", "Nublado", "Lluvia", "Tormenta", "Niebla", "Nieve", "Halloween" },
     TIPOS_CLIMA = { false, "EXTRASUNNY", "CLEAR", "CLOUDS", "RAIN", "THUNDER", "FOGGY", "XMAS", "HALLOWEEN" },
     -- posturas al volar: { nombre, diccionario, animación } (si una no carga, se usa la de paracaidista)
     POSTURAS = { { "Superman", "swimming@first_person@diving", "dive_run_fwd_-45_loop" },
-                 { "Skydiver", "skydive@base", "free_idle" } },
-    POSTURAS_N = { "Superman", "Skydiver" } }
+                 { "Paracaidista", "skydive@base", "free_idle" } },
+    POSTURAS_N = { "Superman", "Paracaidista" } }
 local manoLocal = nil  -- posición medida de las manos respecto al personaje
 local ultimoVeh = nil  -- último coche soltado/lanzado
 local bloqueoEntrarHasta = 0
@@ -531,19 +526,19 @@ end
 
 local function Agarrar()
     local ped = PlayerPedId()
-    if IsPedInAnyVehicle(ped, false) then Notificar("~r~Get out of the vehicle first"); return end
+    if IsPedInAnyVehicle(ped, false) then Notificar("~r~Sal del vehículo primero"); return end
 
     local veh = apuntado or BuscarObjetivo()
     if not veh then
-        if rechazado then Notificar("~r~A player is driving that vehicle")
-        else Notificar("~r~Aim at a car (max. " .. math.floor(Config.alcance) .. " m)") end
+        if rechazado then Notificar("~r~Ese vehículo lo conduce un jugador")
+        else Notificar("~r~Apunta a un coche (máx. " .. math.floor(Config.alcance) .. " m)") end
         return
     end
     -- Última comprobación justo antes de cogerlo: si lo conduce un jugador, no se toca
-    if ConduceJugador(veh) then Notificar("~r~A player is driving that vehicle"); return end
+    if ConduceJugador(veh) then Notificar("~r~Ese vehículo lo conduce un jugador"); return end
 
-    if not PedirControl(veh) then Notificar("~r~Couldn't take control of the vehicle"); return end
-    if ConduceJugador(veh) then Notificar("~r~A player is driving that vehicle"); return end
+    if not PedirControl(veh) then Notificar("~r~No se pudo obtener el control del vehículo"); return end
+    if ConduceJugador(veh) then Notificar("~r~Ese vehículo lo conduce un jugador"); return end
 
     Contorno(veh, false)
     apuntado = nil
@@ -758,7 +753,7 @@ function Teclas.BindDe(id) TeclaDe(id); return bindPorId[id] end
 function Teclas.Fila(id, label, desc)
     local b = Teclas.BindDe(id)
     return { tipo = "bind", label = label or b.nombre, bind = b,
-             desc = desc or "Click and press the new key. Del or Backspace resets it." }
+             desc = desc or "Clic y pulsa la tecla nueva. Supr o Retroceso la dejan como venía." }
 end
 -- Id con el que se guarda la tecla propia de una opción (nil si no admite)
 function Teclas.IdAtajo(it)
@@ -788,10 +783,10 @@ function Teclas.Asignar(E, vk)
     if E.atajo then
         if borrar then
             Teclas.atajos[E.atajo] = nil; Teclas.GuardarAtajos()
-            Avisar(E.label .. ": no key"); return
+            Avisar(E.label .. ": sin tecla"); return
         end
         for _, b in ipairs(binds) do
-            if b.tecla == vk then Avisar(NombreTecla(vk) .. " is already «" .. b.nombre .. "»"); return end
+            if b.tecla == vk then Avisar(NombreTecla(vk) .. " ya es de «" .. b.nombre .. "»"); return end
         end
         for id, k in pairs(Teclas.atajos) do if k == vk then Teclas.atajos[id] = nil end end
         Teclas.atajos[E.atajo], Teclas.nombres[E.atajo] = vk, E.label
@@ -803,10 +798,10 @@ function Teclas.Asignar(E, vk)
     if borrar then for i, x in ipairs(binds) do if x == b then vk = bindsPorDefecto[i] end end end
     local msg
     for _, x in ipairs(binds) do
-        if x ~= b and x.tecla == vk then x.tecla = b.tecla; msg = x.nombre .. " moves to " .. NombreTecla(x.tecla) end
+        if x ~= b and x.tecla == vk then x.tecla = b.tecla; msg = x.nombre .. " pasa a " .. NombreTecla(x.tecla) end
     end
     for id, k in pairs(Teclas.atajos) do
-        if k == vk then Teclas.atajos[id] = nil; Teclas.GuardarAtajos(); msg = "Key removed from " .. (Teclas.nombres[id] or id) end
+        if k == vk then Teclas.atajos[id] = nil; Teclas.GuardarAtajos(); msg = "Tecla quitada de " .. (Teclas.nombres[id] or id) end
     end
     b.tecla = vk
     Guardado.pendiente = true
@@ -941,7 +936,7 @@ local function NombrePieza(v, t, i, generico)
         local txt = GetLabelText(lbl)
         if txt and txt ~= "NULL" and txt ~= "" then return txt end
     end
-    return (generico or "Option") .. " " .. (i + 1)
+    return (generico or "Opción") .. " " .. (i + 1)
 end
 
 -- Opción de pieza: lista "De serie" + todas las piezas que tiene este vehículo
@@ -949,9 +944,9 @@ local function Pieza(label, t, generico, desc)
     local v = Tuneo.veh
     local n = GetNumVehicleMods(v, t)
     if not n or n <= 0 then return nil end
-    local ops = { "Default" }
+    local ops = { "De serie" }
     for i = 0, n - 1 do ops[#ops + 1] = NombrePieza(v, t, i, generico) end
-    return { tipo = "lista", label = label, opciones = ops, desc = desc or ("Part: " .. label .. "."),
+    return { tipo = "lista", label = label, opciones = ops, desc = desc or ("Pieza: " .. label .. "."),
         get = function() return GetVehicleMod(Tuneo.veh, t) + 2 end,
         set = function(i)
             Aplicar(function(veh)
@@ -998,20 +993,20 @@ for i = 0, 159 do COLORES_JUEGO[i + 1] = "Color " .. i end
 -- Color del vehículo con el selector (cuadro de color, tono, código hex y colores rápidos)
 local function ColorV(label, leer, escribir, desc)
     return { tipo = "color", label = label,
-        desc = desc or "Click and pick: drag in the square, change the hue below or paste a hex code. Applied instantly.",
+        desc = desc or "Clic y elige: arrastra en el cuadro, cambia el tono abajo o pega un código hex. Se pinta al momento.",
         get = function() local r, g, b = leer(Tuneo.veh); return r, g, b, 255 end,
         set = function(r, g, b) Aplicar(function(veh) escribir(veh, r, g, b) end) end }
 end
 
 -- ── Categorías ────────────────────────────────────────────
-local TIPOS_LLANTA = { "Sport", "Muscle", "Lowrider", "SUV", "Off-road", "Tuner", "Bike",
-                       "High-end", "Benny's Originals", "Benny's Bespoke", "Open Wheel", "Street", "Track" }
-local TIPOS_PINTURA = { "Normal", "Metallic", "Pearlescent", "Matte", "Metal", "Chrome" }
-local TINTADOS = { "No tint", "Pure black", "Dark smoke", "Light smoke", "Default", "Limo", "Green" }
-local MATRICULAS = { "Blue on white 1", "Yellow on black", "Yellow on blue",
-                     "Blue on white 2", "Blue on white 3", "Yankton" }
-local COLORES_XENON = { "Default", "White", "Blue", "Electric blue", "Mint green", "Lime green", "Yellow",
-                        "Gold", "Orange", "Red", "Pony pink", "Hot pink", "Purple", "Blacklight" }
+local TIPOS_LLANTA = { "Deportivas", "Muscle", "Lowrider", "SUV", "Todoterreno", "Tuner", "Moto",
+                       "Alta gama", "Benny's originales", "Benny's a medida", "Monoplaza", "Calle", "Circuito" }
+local TIPOS_PINTURA = { "Normal", "Metalizada", "Perlada", "Mate", "Metal", "Cromo" }
+local TINTADOS = { "Sin tintar", "Negro total", "Humo oscuro", "Humo claro", "De serie", "Limusina", "Verde" }
+local MATRICULAS = { "Azul sobre blanco 1", "Amarillo sobre negro", "Amarillo sobre azul",
+                     "Azul sobre blanco 2", "Azul sobre blanco 3", "Yankton" }
+local COLORES_XENON = { "De serie", "Blanco", "Azul", "Azul eléctrico", "Verde menta", "Verde lima", "Amarillo",
+                        "Dorado", "Naranja", "Rojo", "Rosa poni", "Rosa intenso", "Morado", "Luz negra" }
 
 -- Pide un texto con un cuadro dibujado por Susano (el teclado se lee con Susano.GetAsyncKeyState)
 local function PedirTexto(titulo, inicial, max, cb)
@@ -1020,17 +1015,17 @@ local function PedirTexto(titulo, inicial, max, cb)
 end
 
 local PIEZAS_CARROCERIA = {
-    { 0, "Spoiler" }, { 1, "Front bumper" }, { 2, "Rear bumper" }, { 3, "Skirts" },
-    { 4, "Exhaust" }, { 5, "Roll cage" }, { 6, "Grille" }, { 7, "Hood" }, { 8, "Left fender" },
-    { 9, "Right fender" }, { 10, "Roof" }, { 48, "Livery" },
+    { 0, "Alerón" }, { 1, "Paragolpes delantero" }, { 2, "Paragolpes trasero" }, { 3, "Taloneras" },
+    { 4, "Escape" }, { 5, "Jaula" }, { 6, "Rejilla" }, { 7, "Capó" }, { 8, "Aleta izquierda" },
+    { 9, "Aleta derecha" }, { 10, "Techo" }, { 48, "Vinilo" },
 }
 local PIEZAS_INTERIOR = {
-    { 25, "Plate holder" }, { 26, "Vanity plate" }, { 27, "Trim" }, { 28, "Ornaments" },
-    { 29, "Dashboard" }, { 30, "Dials" }, { 31, "Door speakers" }, { 32, "Seats" },
-    { 33, "Steering wheel" }, { 34, "Shifter" }, { 35, "Plaques" }, { 36, "Speakers" },
-    { 37, "Trunk" }, { 38, "Hydraulics" }, { 39, "Engine block" }, { 40, "Air filter" },
-    { 41, "Struts" }, { 42, "Arch covers" }, { 43, "Aerials" }, { 44, "Exterior trim" },
-    { 45, "Tank" }, { 46, "Windows" },
+    { 25, "Soporte de matrícula" }, { 26, "Matrícula decorativa" }, { 27, "Molduras" }, { 28, "Adornos" },
+    { 29, "Salpicadero" }, { 30, "Esferas" }, { 31, "Altavoces de puerta" }, { 32, "Asientos" },
+    { 33, "Volante" }, { 34, "Palanca de cambios" }, { 35, "Placas" }, { 36, "Altavoces" },
+    { 37, "Maletero" }, { 38, "Hidráulica" }, { 39, "Bloque del motor" }, { 40, "Filtro de aire" },
+    { 41, "Puntales" }, { 42, "Tapa de arcos" }, { 43, "Antenas" }, { 44, "Molduras exteriores" },
+    { 45, "Depósito" }, { 46, "Ventanillas" },
 }
 
 local function TodoAlMaximo(v)
@@ -1082,151 +1077,151 @@ end
 local function Anadir(lista, it) if it then lista[#lista + 1] = it end end
 
 CATEGORIAS = {
-    { "Performance", function(I)
-        Anadir(I, Pieza("Engine", 11, "Level", "Upgrades the engine: more acceleration and top speed."))
-        Anadir(I, Pieza("Brakes", 12, "Level", "Stronger brakes."))
-        Anadir(I, Pieza("Transmission", 13, "Level", "Faster gear changes."))
-        Anadir(I, Pieza("Suspension", 15, "Level", "Lowers the car and improves grip."))
-        Anadir(I, Pieza("Armor", 16, "Level", "More resistance to hits and bullets."))
-        Anadir(I, Mejora("Turbo", 18, "More acceleration off the line."))
-        Anadir(I, Boton("Everything maxed", function(v) TodoAlMaximo(v); Avisar("Performance maxed") end,
-            "Engine, brakes, transmission, suspension and armor maxed, turbo, xenon and bulletproof tires."))
+    { "Rendimiento", function(I)
+        Anadir(I, Pieza("Motor", 11, "Nivel", "Mejora el motor: más aceleración y velocidad."))
+        Anadir(I, Pieza("Frenos", 12, "Nivel", "Frenos más potentes."))
+        Anadir(I, Pieza("Transmisión", 13, "Nivel", "Cambios de marcha más rápidos."))
+        Anadir(I, Pieza("Suspensión", 15, "Nivel", "Baja el coche y mejora el agarre."))
+        Anadir(I, Pieza("Blindaje", 16, "Nivel", "Más resistencia a golpes y disparos."))
+        Anadir(I, Mejora("Turbo", 18, "Más aceleración al salir."))
+        Anadir(I, Boton("Todo al máximo", function(v) TodoAlMaximo(v); Avisar("Rendimiento al máximo") end,
+            "Motor, frenos, transmisión, suspensión y blindaje al máximo, turbo, xenón y ruedas antipinchazos."))
     end },
-    { "Bodywork", function(I)
+    { "Carrocería", function(I)
         for _, p in ipairs(PIEZAS_CARROCERIA) do Anadir(I, Pieza(p[2], p[1])) end
         local nl = GetVehicleLiveryCount(Tuneo.veh)
         if nl and nl > 0 then
             local ops = {}
-            for i = 1, nl do ops[i] = "Design " .. i end
-            Anadir(I, ListaV("Factory livery", ops,
+            for i = 1, nl do ops[i] = "Diseño " .. i end
+            Anadir(I, ListaV("Diseño de fábrica", ops,
                 function(v) return math.max(GetVehicleLivery(v), 0) + 1 end,
-                function(v, i) SetVehicleLivery(v, i - 1) end, "Paint liveries the vehicle comes with."))
+                function(v, i) SetVehicleLivery(v, i - 1) end, "Diseños de pintura que trae el vehículo."))
         end
-        if #I == 0 then I[1] = { tipo = "texto", label = "This vehicle has no bodywork parts" } end
+        if #I == 0 then I[1] = { tipo = "texto", label = "Este vehículo no tiene piezas de carrocería" } end
     end },
     { "Interior", function(I)
         for _, p in ipairs(PIEZAS_INTERIOR) do Anadir(I, Pieza(p[2], p[1])) end
-        if #I == 0 then I[1] = { tipo = "texto", label = "This vehicle has no interior parts" } end
+        if #I == 0 then I[1] = { tipo = "texto", label = "Este vehículo no tiene piezas de interior" } end
     end },
-    { "Wheels", function(I)
-        Anadir(I, ListaV("Wheel type", TIPOS_LLANTA,
+    { "Ruedas", function(I)
+        Anadir(I, ListaV("Tipo de llanta", TIPOS_LLANTA,
             function(v) return GetVehicleWheelType(v) + 1 end,
             function(v, i) SetVehicleWheelType(v, i - 1); SetVehicleMod(v, 23, -1, false); Tuneo.sucio = true end,
-            "Wheel family. Changing it loads the wheels of that type."))
-        Anadir(I, Pieza("Wheels", 23, "Wheel", "Wheel model."))
-        if IsThisModelABike(GetEntityModel(Tuneo.veh)) then Anadir(I, Pieza("Rear wheel", 24, "Wheel")) end
-        Anadir(I, Casilla("Custom tires",
+            "Familia de llantas. Al cambiarla se cargan las llantas de ese tipo."))
+        Anadir(I, Pieza("Llantas", 23, "Llanta", "Modelo de llanta."))
+        if IsThisModelABike(GetEntityModel(Tuneo.veh)) then Anadir(I, Pieza("Llanta trasera", 24, "Llanta")) end
+        Anadir(I, Casilla("Neumáticos personalizados",
             function(v) return GetVehicleModVariation(v, 23) end,
             function(v, on) SetVehicleMod(v, 23, GetVehicleMod(v, 23), on) end,
-            "Tires with a special pattern."))
-        Anadir(I, Casilla("Bulletproof",
+            "Neumáticos con dibujo especial."))
+        Anadir(I, Casilla("Antipinchazos",
             function(v) return not GetVehicleTyresCanBurst(v) end,
             function(v, on) SetVehicleTyresCanBurst(v, not on) end,
-            "Tires don't burst from gunfire."))
-        Anadir(I, ListaV("Wheel color", COLORES_JUEGO,
+            "Las ruedas no revientan con disparos."))
+        Anadir(I, ListaV("Color de llantas", COLORES_JUEGO,
             function(v) local _, w = GetVehicleExtraColours(v); return w + 1 end,
             function(v, i) local p = GetVehicleExtraColours(v); SetVehicleExtraColours(v, p, i - 1) end,
-            "Game palette color for the wheels."))
-        Anadir(I, Mejora("Tire smoke", 20, "Colored smoke when you drift."))
-        Anadir(I, ColorV("Smoke color",
+            "Color de la paleta del juego para las llantas."))
+        Anadir(I, Mejora("Humo de neumáticos", 20, "Humo de color al derrapar."))
+        Anadir(I, ColorV("Color del humo",
             function(v) return GetVehicleTyreSmokeColor(v) end,
             function(v, r, g, b) ToggleVehicleMod(v, 20, true); SetVehicleTyreSmokeColor(v, r, g, b) end))
     end },
-    { "Paint", function(I)
-        Anadir(I, ColorV("Primary color",
+    { "Pintura", function(I)
+        Anadir(I, ColorV("Color principal",
             function(v) return GetVehicleCustomPrimaryColour(v) end,
             function(v, r, g, b) SetVehicleCustomPrimaryColour(v, r, g, b) end))
-        Anadir(I, ColorV("Secondary color",
+        Anadir(I, ColorV("Color secundario",
             function(v) return GetVehicleCustomSecondaryColour(v) end,
             function(v, r, g, b) SetVehicleCustomSecondaryColour(v, r, g, b) end))
-        Anadir(I, ListaV("Primary finish", TIPOS_PINTURA,
+        Anadir(I, ListaV("Acabado principal", TIPOS_PINTURA,
             function(v) local t = GetVehicleModColor_1(v); return Clamp((t or 0) + 1, 1, #TIPOS_PINTURA) end,
             function(v, i)
                 local custom, r, g, b = GetIsVehiclePrimaryColourCustom(v), GetVehicleCustomPrimaryColour(v)
                 SetVehicleModColor_1(v, i - 1, 0, 0)
                 if custom then SetVehicleCustomPrimaryColour(v, r, g, b) end
-            end, "Paint type: normal, metallic, pearlescent, matte, metal or chrome."))
-        Anadir(I, ListaV("Secondary finish", TIPOS_PINTURA,
+            end, "Tipo de pintura: normal, metalizada, perlada, mate, metal o cromo."))
+        Anadir(I, ListaV("Acabado secundario", TIPOS_PINTURA,
             function(v) local t = GetVehicleModColor_2(v); return Clamp((t or 0) + 1, 1, #TIPOS_PINTURA) end,
             function(v, i)
                 local custom, r, g, b = GetIsVehicleSecondaryColourCustom(v), GetVehicleCustomSecondaryColour(v)
                 SetVehicleModColor_2(v, i - 1, 0)
                 if custom then SetVehicleCustomSecondaryColour(v, r, g, b) end
-            end, "Paint type for the secondary color."))
-        Anadir(I, ListaV("Pearl", COLORES_JUEGO,
+            end, "Tipo de pintura del color secundario."))
+        Anadir(I, ListaV("Perlado", COLORES_JUEGO,
             function(v) local p = GetVehicleExtraColours(v); return p + 1 end,
             function(v, i) local _, w = GetVehicleExtraColours(v); SetVehicleExtraColours(v, i - 1, w) end,
-            "Pearl sheen over the primary color."))
-        Anadir(I, ListaV("Interior color", COLORES_JUEGO,
+            "Brillo perlado encima del color principal."))
+        Anadir(I, ListaV("Color del interior", COLORES_JUEGO,
             function(v) return (N_GetInter(v) or 0) + 1 end,
-            function(v, i) N_SetInter(v, i - 1) end, "Upholstery color."))
-        Anadir(I, ListaV("Dashboard color", COLORES_JUEGO,
+            function(v, i) N_SetInter(v, i - 1) end, "Color de la tapicería."))
+        Anadir(I, ListaV("Color del salpicadero", COLORES_JUEGO,
             function(v) return (N_GetSalpi(v) or 0) + 1 end,
-            function(v, i) N_SetSalpi(v, i - 1) end, "Dashboard color."))
+            function(v, i) N_SetSalpi(v, i - 1) end, "Color del salpicadero."))
     end },
-    { "Lights", function(I)
-        Anadir(I, Mejora("Xenon headlights", 22, "Brighter headlights."))
-        Anadir(I, ListaV("Xenon color", COLORES_XENON,
+    { "Luces", function(I)
+        Anadir(I, Mejora("Faros de xenón", 22, "Faros más brillantes."))
+        Anadir(I, ListaV("Color del xenón", COLORES_XENON,
             function(v) local c = N_GetXenon(v); if type(c) ~= "number" or c < 0 or c > 12 then return 1 end; return c + 2 end,
             function(v, i) ToggleVehicleMod(v, 22, true); N_SetXenon(v, i == 1 and 255 or i - 2) end,
-            "Color of the xenon headlights."))
-        local lados = { "Left neon", "Right neon", "Front neon", "Rear neon" }
+            "Color de los faros de xenón."))
+        local lados = { "Neón izquierdo", "Neón derecho", "Neón delantero", "Neón trasero" }
         for i = 0, 3 do
             Anadir(I, Casilla(lados[i + 1],
                 function(v) return IsVehicleNeonLightEnabled(v, i) end,
-                function(v, on) SetVehicleNeonLightEnabled(v, i, on) end, "Neon light under the vehicle."))
+                function(v, on) SetVehicleNeonLightEnabled(v, i, on) end, "Luz de neón bajo el vehículo."))
         end
-        Anadir(I, ColorV("Neon color",
+        Anadir(I, ColorV("Color del neón",
             function(v) return GetVehicleNeonLightsColour(v) end,
             function(v, r, g, b) SetVehicleNeonLightsColour(v, r, g, b) end))
     end },
-    { "Other", function(I)
-        Anadir(I, Pieza("Horn", 14, "Horn", "Horn sound."))
-        Anadir(I, ListaV("Window tint", TINTADOS,
+    { "Otros", function(I)
+        Anadir(I, Pieza("Claxon", 14, "Claxon", "Sonido del claxon."))
+        Anadir(I, ListaV("Tintado de lunas", TINTADOS,
             function(v) return Clamp(GetVehicleWindowTint(v) + 1, 1, #TINTADOS) end,
-            function(v, i) SetVehicleWindowTint(v, i - 1) end, "Darkens the windows."))
-        Anadir(I, ListaV("Plate type", MATRICULAS,
+            function(v, i) SetVehicleWindowTint(v, i - 1) end, "Oscurece las ventanillas."))
+        Anadir(I, ListaV("Tipo de matrícula", MATRICULAS,
             function(v) return Clamp(GetVehicleNumberPlateTextIndex(v) + 1, 1, #MATRICULAS) end,
-            function(v, i) SetVehicleNumberPlateTextIndex(v, i - 1) end, "Plate style."))
-        Anadir(I, { tipo = "accion", label = "Plate text", desc = "Type the plate text (max. 8).",
+            function(v, i) SetVehicleNumberPlateTextIndex(v, i - 1) end, "Estilo de la placa."))
+        Anadir(I, { tipo = "accion", label = "Texto de la matrícula", desc = "Escribe el texto de la matrícula (máx. 8).",
             fn = function()
                 local v = Tuneo.veh
                 if not v then return end
-                PedirTexto("Plate text", GetVehicleNumberPlateText(v), 8, function(t)
+                PedirTexto("Texto de la matrícula", GetVehicleNumberPlateText(v), 8, function(t)
                     Aplicar(function(veh) SetVehicleNumberPlateText(veh, t) end)
-                    Avisar("Plate: " .. t)
+                    Avisar("Matrícula: " .. t)
                 end)
             end })
         for id = 0, 14 do
             if DoesExtraExist(Tuneo.veh, id) then
                 Anadir(I, Casilla("Extra " .. id,
                     function(v) return IsVehicleExtraTurnedOn(v, id) end,
-                    function(v, on) SetVehicleExtra(v, id, not on) end, "Factory extra part of the vehicle."))
+                    function(v, on) SetVehicleExtra(v, id, not on) end, "Pieza extra de fábrica del vehículo."))
             end
         end
     end },
-    { "Condition", function(I)
-        Anadir(I, Boton("Repair", function(v) Reparar(v); Avisar("Vehicle repaired") end,
-            "Fixes engine, body and tank, and cleans it."))
-        Anadir(I, Boton("Clean", function(v) SetVehicleDirtLevel(v, 0.0); WashDecalsFromVehicle(v, 1.0); Avisar("Vehicle cleaned") end,
-            "Removes the dirt."))
-        Anadir(I, Boton("Flip over", function(v)
-                SetEntityRotation(v, 0.0, 0.0, GetEntityHeading(v), 2, true); SetVehicleOnGroundProperly(v); Avisar("Upright again")
-            end, "If it flipped, puts it back on its wheels."))
-        Anadir(I, Boton("Everything maxed", function(v) TodoAlMaximo(v); Avisar("Performance maxed") end,
-            "Performance maxed, turbo, xenon and bulletproof tires."))
-        Anadir(I, Boton("Random tuning", function(v) Aleatorio(v); Avisar("Random tuning applied") end,
-            "Random parts and colors."))
-        Anadir(I, Boton("Remove all tuning", function(v) QuitarTodo(v); Avisar("Stock vehicle") end,
-            "Resets the vehicle to stock."))
+    { "Estado", function(I)
+        Anadir(I, Boton("Reparar", function(v) Reparar(v); Avisar("Vehículo reparado") end,
+            "Arregla motor, carrocería y depósito, y lo deja limpio."))
+        Anadir(I, Boton("Limpiar", function(v) SetVehicleDirtLevel(v, 0.0); WashDecalsFromVehicle(v, 1.0); Avisar("Vehículo limpio") end,
+            "Quita la suciedad."))
+        Anadir(I, Boton("Dar la vuelta", function(v)
+                SetEntityRotation(v, 0.0, 0.0, GetEntityHeading(v), 2, true); SetVehicleOnGroundProperly(v); Avisar("De pie otra vez")
+            end, "Si ha volcado, lo pone de pie."))
+        Anadir(I, Boton("Todo al máximo", function(v) TodoAlMaximo(v); Avisar("Rendimiento al máximo") end,
+            "Rendimiento al máximo, turbo, xenón y ruedas antipinchazos."))
+        Anadir(I, Boton("Tuneo aleatorio", function(v) Aleatorio(v); Avisar("Tuneo aleatorio aplicado") end,
+            "Piezas y colores al azar."))
+        Anadir(I, Boton("Quitar todo el tuneo", function(v) QuitarTodo(v); Avisar("Vehículo de serie") end,
+            "Deja el vehículo de serie."))
     end },
 }
 
-panelCategorias = { titulo = "Garage", items = {} }
-panelOpciones   = { titulo = "Options", items = {} }
+panelCategorias = { titulo = "Taller", items = {} }
+panelOpciones   = { titulo = "Opciones", items = {} }
 
 for i, c in ipairs(CATEGORIAS) do
-    panelCategorias.items[i] = { tipo = "cat", label = c[1], desc = "Tuning: " .. c[1]:lower() .. ".",
+    panelCategorias.items[i] = { tipo = "cat", label = c[1], desc = "Tuneo: " .. c[1]:lower() .. ".",
         activo = function() return Tuneo.cat == i end,
         fn = function() if Tuneo.cat ~= i then Tuneo.cat = i; Tuneo.sucio = true end end }
 end
@@ -1249,7 +1244,7 @@ function ActualizarTuneo()
     panelOpciones.titulo = cat[1]
     local items = {}
     if not Tuneo.veh then
-        items[1] = { tipo = "texto", label = "Get in a vehicle or stand near one" }
+        items[1] = { tipo = "texto", label = "Súbete a un vehículo o acércate a uno" }
     else
         SetVehicleModKit(Tuneo.veh, 0)
         local ok, err = pcall(cat[2], items)
@@ -1365,7 +1360,7 @@ local function VigilarRopa(p, f)
         if ReponerApariencia then pcall(ReponerApariencia) end
         if GetGameTimer() - ultimoAviso > 3000 then
             ultimoAviso = GetGameTimer()
-            Avisar("Clothes locked: restored " .. repuestas .. " items")
+            Avisar("Ropa fija: repuestas " .. repuestas .. " prendas")
         end
     end
 end
@@ -1403,7 +1398,7 @@ local function Prenda(items, nombre, c, desc)
     items[#items + 1] = { tipo = "slider", label = nombre, min = 0, paso = 1,
         max = function() return math.max(NumModelos(c) - 1, 0) end,
         fmt = function(v) return string.format("%d / %d", v, math.max(NumModelos(c) - 1, 0)) end,
-        desc = desc or ("Model of " .. nombre:lower() .. ". Hold Shift to go in steps of 10."),
+        desc = desc or ("Modelo de " .. nombre:lower() .. ". Mantén Shift para ir de 10 en 10."),
         get = function() return GetPedDrawableVariation(PlayerPedId(), c) end,
         set = function(v)
             local p = PlayerPedId()
@@ -1420,13 +1415,13 @@ local function Prenda(items, nombre, c, desc)
                 end
             end
         end }
-    items[#items + 1] = { tipo = "slider", label = "   Texture", min = 0, paso = 1,
+    items[#items + 1] = { tipo = "slider", label = "   Textura", min = 0, paso = 1,
         max = function() local p = PlayerPedId(); return math.max(NumTexturas(c, GetPedDrawableVariation(p, c)) - 1, 0) end,
         fmt = function(v)
             local p = PlayerPedId()
             return string.format("%d / %d", v, math.max(NumTexturas(c, GetPedDrawableVariation(p, c)) - 1, 0))
         end,
-        desc = "Color or pattern variant of this item.",
+        desc = "Variante de color o dibujo de esta prenda.",
         get = function() return GetPedTextureVariation(PlayerPedId(), c) end,
         set = function(v)
             local p = PlayerPedId()
@@ -1444,10 +1439,10 @@ local function Accesorio(items, nombre, pr, desc)
     items[#items + 1] = { tipo = "slider", label = nombre, min = -1, paso = 1,
         max = function() return math.max(NumModelosProp(pr) - 1, -1) end,
         fmt = function(v)
-            if v < 0 then return "None" end
+            if v < 0 then return "Nada" end
             return string.format("%d / %d", v, math.max(NumModelosProp(pr) - 1, 0))
         end,
-        desc = desc or (nombre .. ". Far left: no " .. nombre:lower() .. "."),
+        desc = desc or (nombre .. ". A la izquierda del todo: sin " .. nombre:lower() .. "."),
         get = function() return GetPedPropIndex(PlayerPedId(), pr) end,
         set = function(v)
             local p = PlayerPedId()
@@ -1456,7 +1451,7 @@ local function Accesorio(items, nombre, pr, desc)
             elseif v ~= GetPedPropIndex(p, pr) then SetPedPropIndex(p, pr, v, 0, true) end
             Ropa.Refijar()
         end }
-    items[#items + 1] = { tipo = "slider", label = "   Texture", min = 0, paso = 1,
+    items[#items + 1] = { tipo = "slider", label = "   Textura", min = 0, paso = 1,
         max = function()
             local p = PlayerPedId(); local d = GetPedPropIndex(p, pr)
             if d < 0 then return 0 end
@@ -1467,7 +1462,7 @@ local function Accesorio(items, nombre, pr, desc)
             if d < 0 then return "-" end
             return string.format("%d / %d", v, math.max(NumTexturasProp(pr, d) - 1, 0))
         end,
-        desc = "Color or pattern variant of this accessory.",
+        desc = "Variante de color o dibujo de este accesorio.",
         get = function() return math.max(GetPedPropTextureIndex(PlayerPedId(), pr), 0) end,
         set = function(v)
             local p = PlayerPedId(); local d = GetPedPropIndex(p, pr)
@@ -1485,12 +1480,12 @@ local function GuardarAtuendo(n)
     for _, pr in ipairs(PROPS) do a.prop[pr] = { GetPedPropIndex(p, pr), GetPedPropTextureIndex(p, pr) } end
     Ropa.atuendos[n] = a
     Guardado.pendiente = true
-    Avisar("Outfit " .. n .. " saved")
+    Avisar("Atuendo " .. n .. " guardado")
 end
 
 local function CargarAtuendo(n)
     local a = Ropa.atuendos[n]
-    if not a then Avisar("Outfit " .. n .. " is empty"); return end
+    if not a then Avisar("El atuendo " .. n .. " está vacío"); return end
     local p = PlayerPedId()
     for c, v in pairs(a.comp) do
         if IsPedComponentVariationValid(p, c, v[1], v[2]) then SetPedComponentVariation(p, c, v[1], v[2], v[3] or 0) end
@@ -1499,76 +1494,76 @@ local function CargarAtuendo(n)
         if v[1] < 0 then ClearPedProp(p, pr) else SetPedPropIndex(p, pr, v[1], math.max(v[2], 0), true) end
     end
     Ropa.Refijar()
-    Avisar("Outfit " .. n .. " on")
+    Avisar("Atuendo " .. n .. " puesto")
 end
 
 local function Btn(label, fn, desc) return { tipo = "accion", label = label, fn = fn, desc = desc } end
 
 CATEGORIAS_ROPA = {
-    { "Head", function(I)
-        Accesorio(I, "Hats", 0, "Caps, helmets and hats.")
-        Accesorio(I, "Glasses", 1, "Sunglasses and eyewear.")
-        Accesorio(I, "Earrings", 2, "Earrings and ear accessories.")
-        Prenda(I, "Masks", 1, "Masks and balaclavas.")
+    { "Cabeza", function(I)
+        Accesorio(I, "Sombreros", 0, "Gorras, cascos y sombreros.")
+        Accesorio(I, "Gafas", 1, "Gafas de sol y de ver.")
+        Accesorio(I, "Pendientes", 2, "Pendientes y accesorios de oreja.")
+        Prenda(I, "Máscaras", 1, "Máscaras y pasamontañas.")
     end },
-    { "Hair", function(I)
-        Prenda(I, "Hairstyle", 2, "Character's hairstyle.")
+    { "Pelo", function(I)
+        Prenda(I, "Peinado", 2, "Peinado del personaje.")
         local nc = GetNumHairColors()
         if nc and nc > 0 then
-            I[#I + 1] = { tipo = "slider", label = "Hair color", min = 0, max = nc - 1, paso = 1,
-                fmt = function(v) return string.format("%d / %d", v, nc - 1) end, desc = "Hair color.",
+            I[#I + 1] = { tipo = "slider", label = "Color de pelo", min = 0, max = nc - 1, paso = 1,
+                fmt = function(v) return string.format("%d / %d", v, nc - 1) end, desc = "Color del pelo.",
                 get = function() return GetPedHairColor(PlayerPedId()) end,
                 set = function(v) local p = PlayerPedId(); SetPedHairColor(p, math.floor(v), GetPedHairHighlightColor(p)) end }
-            I[#I + 1] = { tipo = "slider", label = "Highlights", min = 0, max = nc - 1, paso = 1,
-                fmt = function(v) return string.format("%d / %d", v, nc - 1) end, desc = "Highlight color.",
+            I[#I + 1] = { tipo = "slider", label = "Mechas", min = 0, max = nc - 1, paso = 1,
+                fmt = function(v) return string.format("%d / %d", v, nc - 1) end, desc = "Color de las mechas.",
                 get = function() return GetPedHairHighlightColor(PlayerPedId()) end,
                 set = function(v) local p = PlayerPedId(); SetPedHairColor(p, GetPedHairColor(p), math.floor(v)) end }
         end
     end },
     { "Torso", function(I)
-        Prenda(I, "Jackets", 11, "Top layer: jackets, hoodies, shirts.")
-        Prenda(I, "T-shirts", 8, "Under layer: t-shirts and undershirts.")
-        Prenda(I, "Arms and gloves", 3, "Torso arms and gloves. Adjust it if you see seams on the arms.")
-        Prenda(I, "Vests", 9, "Bulletproof vests and similar.")
-        Prenda(I, "Decals", 10, "Patches, logos and decals.")
+        Prenda(I, "Chaquetas", 11, "Prenda de arriba: chaquetas, sudaderas, camisas.")
+        Prenda(I, "Camisetas", 8, "Prenda de debajo: camisetas y camisas interiores.")
+        Prenda(I, "Brazos y guantes", 3, "Brazos del torso y guantes. Ajústalo si se ven cortes en los brazos.")
+        Prenda(I, "Chalecos", 9, "Chalecos antibalas y similares.")
+        Prenda(I, "Insignias", 10, "Parches, logos y calcomanías.")
     end },
-    { "Legs", function(I)
-        Prenda(I, "Pants", 4, "Pants, skirts and shorts.")
-        Prenda(I, "Shoes", 6, "Calzado.")
+    { "Piernas", function(I)
+        Prenda(I, "Pantalones", 4, "Pantalones, faldas y shorts.")
+        Prenda(I, "Zapatos", 6, "Calzado.")
     end },
-    { "Accessories", function(I)
-        Prenda(I, "Neck and chains", 7, "Necklaces, chains, ties and scarves.")
-        Prenda(I, "Backpacks and bags", 5, "Backpacks, bags and parachutes.")
-        Accesorio(I, "Watches", 6, "Relojes.")
-        Accesorio(I, "Bracelets", 7, "Pulseras.")
+    { "Accesorios", function(I)
+        Prenda(I, "Cuello y cadenas", 7, "Collares, cadenas, corbatas y bufandas.")
+        Prenda(I, "Mochilas y bolsas", 5, "Mochilas, bolsas y paracaídas.")
+        Accesorio(I, "Relojes", 6, "Relojes.")
+        Accesorio(I, "Pulseras", 7, "Pulseras.")
     end },
-    { "Outfits", function(I)
-        I[#I + 1] = { tipo = "toggle", label = "Lock my clothes",
-            desc = "If your clothes get reset or your hat/glasses come off, it puts them back. If you remove or change an item (here or in the server menu), it sticks.",
+    { "Atuendos", function(I)
+        I[#I + 1] = { tipo = "toggle", label = "Fijar mi ropa",
+            desc = "Si te cambian la ropa de golpe o se te cae la gorra/gafas, te la vuelve a poner. Si te quitas o cambias una prenda (aquí o en el menú del servidor), se queda.",
             get = function() return Ropa.fijar end,
             set = function(on)
                 Ropa.fijar = on and true or false
                 Ropa.fija = Ropa.fijar and FotoRopa(PlayerPedId()) or nil
                 if Ropa.fijar then SembrarBase(PlayerPedId(), Ropa.fija) end
                 if Ropa.fijar and AdoptarTatuajes then AdoptarTatuajes() end
-                Avisar(Ropa.fijar and "Clothes locked" or "Clothes free")
+                Avisar(Ropa.fijar and "Ropa fijada" or "Ropa libre")
             end }
         for n = 1, 3 do
-            I[#I + 1] = Btn("Save outfit " .. n, function() GuardarAtuendo(n) end,
-                "Saves the clothes you're wearing now (lost when the script reloads).")
-            I[#I + 1] = Btn("Wear outfit " .. n, function() CargarAtuendo(n) end, "Puts on the saved outfit.")
+            I[#I + 1] = Btn("Guardar atuendo " .. n, function() GuardarAtuendo(n) end,
+                "Guarda la ropa que llevas ahora (se pierde al recargar el script).")
+            I[#I + 1] = Btn("Poner atuendo " .. n, function() CargarAtuendo(n) end, "Te pone el atuendo guardado.")
         end
     end },
-    { "Tools", function(I)
-        I[#I + 1] = Btn("Random clothes", function()
-            local p = PlayerPedId(); SetPedRandomComponentVariation(p, 0); SetPedRandomProps(p); Ropa.Refijar(); Avisar("Random clothes")
-        end, "Dresses the character in random clothes.")
-        I[#I + 1] = Btn("Default clothes", function()
-            SetPedDefaultComponentVariation(PlayerPedId()); Ropa.Refijar(); Avisar("Default clothes")
-        end, "Back to the model's default clothes.")
-        I[#I + 1] = Btn("Remove accessories", function()
-            ClearAllPedProps(PlayerPedId()); Ropa.Refijar(); Avisar("Accessories removed")
-        end, "Removes hat, glasses, earrings, watch and bracelet.")
+    { "Utilidades", function(I)
+        I[#I + 1] = Btn("Ropa aleatoria", function()
+            local p = PlayerPedId(); SetPedRandomComponentVariation(p, 0); SetPedRandomProps(p); Ropa.Refijar(); Avisar("Ropa aleatoria")
+        end, "Viste al personaje con ropa al azar.")
+        I[#I + 1] = Btn("Ropa por defecto", function()
+            SetPedDefaultComponentVariation(PlayerPedId()); Ropa.Refijar(); Avisar("Ropa por defecto")
+        end, "Vuelve a la ropa por defecto del modelo.")
+        I[#I + 1] = Btn("Quitar accesorios", function()
+            ClearAllPedProps(PlayerPedId()); Ropa.Refijar(); Avisar("Accesorios quitados")
+        end, "Quita sombrero, gafas, pendientes, reloj y pulsera.")
     end },
 }
 
@@ -1632,20 +1627,20 @@ local function BarraCara(label, campo, min, max, paso, fmt, desc)
 end
 
 -- ── Rasgos de la cara ─────────────────────────────────────
-local RASGOS = { "Nose width", "Nose peak height", "Nose length",
-    "Nose bridge height", "Nose tip", "Nose skew", "Brow height",
-    "Brow depth", "Cheekbone height", "Cheekbone width", "Cheeks",
-    "Eye opening", "Lip thickness", "Jaw width", "Jaw shape",
-    "Chin height", "Chin length", "Chin width", "Chin dimple",
-    "Neck thickness" }
+local RASGOS = { "Anchura de la nariz", "Altura del pico de la nariz", "Longitud de la nariz",
+    "Altura del puente nasal", "Punta de la nariz", "Desvío de la nariz", "Altura de las cejas",
+    "Profundidad de las cejas", "Altura de los pómulos", "Anchura de los pómulos", "Mejillas",
+    "Apertura de los ojos", "Grosor de los labios", "Anchura de la mandíbula", "Forma de la mandíbula",
+    "Altura de la barbilla", "Longitud de la barbilla", "Anchura de la barbilla", "Hoyuelo de la barbilla",
+    "Grosor del cuello" }
 
 -- ── Detalles (cejas, barba, maquillaje...) ────────────────
 -- { id, nombre, tipo de color: 0 ninguno, 1 pelo, 2 maquillaje }
 local DETALLES = {
-    { 2, "Eyebrows", 1 }, { 1, "Beard", 1 }, { 4, "Eye makeup", 0 }, { 5, "Blush", 2 },
-    { 8, "Lipstick", 2 }, { 0, "Blemishes", 0 }, { 3, "Aging", 0 }, { 6, "Complexion", 0 },
-    { 7, "Sun damage", 0 }, { 9, "Moles and freckles", 0 }, { 10, "Chest hair", 1 },
-    { 11, "Body blemishes", 0 }, { 12, "More body blemishes", 0 },
+    { 2, "Cejas", 1 }, { 1, "Barba", 1 }, { 4, "Maquillaje de ojos", 0 }, { 5, "Colorete", 2 },
+    { 8, "Pintalabios", 2 }, { 0, "Imperfecciones", 0 }, { 3, "Envejecimiento", 0 }, { 6, "Tez", 0 },
+    { 7, "Daño solar", 0 }, { 9, "Lunares y pecas", 0 }, { 10, "Vello del pecho", 1 },
+    { 11, "Manchas del cuerpo", 0 }, { 12, "Más manchas del cuerpo", 0 },
 }
 
 local function LeerDetalle(id)
@@ -1668,8 +1663,8 @@ local function AplicarDetalle(id, tipoColor)
 end
 
 -- ── Tatuajes (se leen de la tienda del juego: todos, incluidos DLC y addon) ──
-local ZONAS = { { 1, "Head" }, { 0, "Torso" }, { 2, "Left arm" }, { 3, "Right arm" },
-                { 4, "Left leg" }, { 5, "Right leg" } }
+local ZONAS = { { 1, "Cabeza" }, { 0, "Torso" }, { 2, "Brazo izquierdo" }, { 3, "Brazo derecho" },
+                { 4, "Pierna izquierda" }, { 5, "Pierna derecha" } }
 local catalogoTatuajes = {}  -- [personaje] = { [zona] = { {col, nombre}, ... } }
 
 local function Catalogo()
@@ -1784,7 +1779,7 @@ local function CambiarModelo(nombre)
     RequestModel(h)
     local t = 0
     while not HasModelLoaded(h) and t < 300 do Citizen.Wait(10); t = t + 1 end
-    if not HasModelLoaded(h) then Avisar("Couldn't load the model"); return end
+    if not HasModelLoaded(h) then Avisar("No se pudo cargar el modelo"); return end
     SetPlayerModel(PlayerId(), h)
     SetModelAsNoLongerNeeded(h)
     local p = PlayerPedId()
@@ -1795,30 +1790,30 @@ local function CambiarModelo(nombre)
     Ropa.srv, Ropa.andar = nil, nil
     Ropa.Refijar()
     Ropa.sucio = true
-    Avisar("Character changed")
+    Avisar("Personaje cambiado")
 end
 
 local function AvisoFreemode(I)
-    I[#I + 1] = { tipo = "texto", label = "Freemode characters only (mp_m / mp_f)" }
-    I[#I + 1] = { tipo = "accion", label = "Switch to freemode male", desc = "Changes your character to mp_m_freemode_01.",
+    I[#I + 1] = { tipo = "texto", label = "Solo con personajes freemode (mp_m / mp_f)" }
+    I[#I + 1] = { tipo = "accion", label = "Pasar a freemode hombre", desc = "Cambia tu personaje a mp_m_freemode_01.",
         fn = function() CambiarModelo("mp_m_freemode_01") end }
-    I[#I + 1] = { tipo = "accion", label = "Switch to freemode female", desc = "Changes your character to mp_f_freemode_01.",
+    I[#I + 1] = { tipo = "accion", label = "Pasar a freemode mujer", desc = "Cambia tu personaje a mp_f_freemode_01.",
         fn = function() CambiarModelo("mp_f_freemode_01") end }
 end
 
 local N_GetOjos = Nativa("GetPedEyeColor", "_GetPedEyeColor")
 
 local CATEGORIAS_CARA = {
-    { "Heritage", function(I)
+    { "Herencia", function(I)
         if not EsFreemode() then return AvisoFreemode(I) end
-        I[#I + 1] = BarraCara("Mother", "madre", 0, 45, 1, "%d", "Mother's face (0-45).")
-        I[#I + 1] = BarraCara("Father", "padre", 0, 45, 1, "%d", "Father's face (0-45).")
-        I[#I + 1] = BarraCara("Resemblance", "parecido", 0, 1, 0.05, "%.2f", "0 = like mother, 1 = like father.")
-        I[#I + 1] = BarraCara("Mother's skin", "pielMadre", 0, 45, 1, "%d", "Mother's skin tone.")
-        I[#I + 1] = BarraCara("Father's skin", "pielPadre", 0, 45, 1, "%d", "Father's skin tone.")
-        I[#I + 1] = BarraCara("Skin blend", "mezclaPiel", 0, 1, 0.05, "%.2f", "0 = mother's skin, 1 = father's.")
-        I[#I + 1] = { tipo = "slider", label = "Eye color", min = 0, max = 31, paso = 1, fmt = "%d",
-            desc = "Eye color.",
+        I[#I + 1] = BarraCara("Madre", "madre", 0, 45, 1, "%d", "Cara de la madre (0-45).")
+        I[#I + 1] = BarraCara("Padre", "padre", 0, 45, 1, "%d", "Cara del padre (0-45).")
+        I[#I + 1] = BarraCara("Parecido", "parecido", 0, 1, 0.05, "%.2f", "0 = como la madre, 1 = como el padre.")
+        I[#I + 1] = BarraCara("Piel de la madre", "pielMadre", 0, 45, 1, "%d", "Tono de piel de la madre.")
+        I[#I + 1] = BarraCara("Piel del padre", "pielPadre", 0, 45, 1, "%d", "Tono de piel del padre.")
+        I[#I + 1] = BarraCara("Mezcla de piel", "mezclaPiel", 0, 1, 0.05, "%.2f", "0 = piel de la madre, 1 = del padre.")
+        I[#I + 1] = { tipo = "slider", label = "Color de ojos", min = 0, max = 31, paso = 1, fmt = "%d",
+            desc = "Color de los ojos.",
             get = function()
                 if Ropa.ojos then return Ropa.ojos end
                 local ok, v = pcall(N_GetOjos, PlayerPedId())
@@ -1827,34 +1822,34 @@ local CATEGORIAS_CARA = {
             end,
             set = function(v) Ropa.ojos = math.floor(v); SetPedEyeColor(PlayerPedId(), Ropa.ojos) end }
     end },
-    { "Features", function(I)
+    { "Rasgos", function(I)
         if not EsFreemode() then return AvisoFreemode(I) end
         for i, nombre in ipairs(RASGOS) do
             local id = i - 1
             I[#I + 1] = { tipo = "slider", label = nombre, min = -1, max = 1, paso = 0.1, fmt = "%.1f",
-                desc = "From -1 to 1. At 0 it stays as the inherited face.",
+                desc = "De -1 a 1. En 0 queda como la cara heredada.",
                 get = function() return Ropa.rasgos[id] or 0.0 end,
                 set = function(v) Ropa.rasgos[id] = v; SetPedFaceFeature(PlayerPedId(), id, v + 0.0) end }
         end
-        I[#I + 1] = { tipo = "accion", label = "Reset features", desc = "Sets all features to 0.",
+        I[#I + 1] = { tipo = "accion", label = "Restablecer rasgos", desc = "Pone todos los rasgos a 0.",
             fn = function()
                 for id = 0, 19 do Ropa.rasgos[id] = 0.0; SetPedFaceFeature(PlayerPedId(), id, 0.0) end
-                Avisar("Features reset")
+                Avisar("Rasgos restablecidos")
             end }
     end },
-    { "Details", function(I)
+    { "Detalles", function(I)
         if not EsFreemode() then return AvisoFreemode(I) end
         for _, d in ipairs(DETALLES) do
             local id, nombre, tipoColor = d[1], d[2], d[3]
             local n = GetNumHeadOverlayValues(id)
             if n and n > 0 then
                 I[#I + 1] = { tipo = "slider", label = nombre, min = -1, max = n - 1, paso = 1,
-                    fmt = function(v) if v < 0 then return "None" end; return string.format("%d / %d", v, n - 1) end,
-                    desc = nombre .. ". Far left: none.",
+                    fmt = function(v) if v < 0 then return "Nada" end; return string.format("%d / %d", v, n - 1) end,
+                    desc = nombre .. ". A la izquierda del todo: nada.",
                     get = function() return LeerDetalle(id).valor end,
                     set = function(v) LeerDetalle(id).valor = math.floor(v); AplicarDetalle(id, tipoColor) end }
-                I[#I + 1] = { tipo = "slider", label = "   Intensity", min = 0, max = 1, paso = 0.05, fmt = "%.2f",
-                    desc = "How noticeable it is.",
+                I[#I + 1] = { tipo = "slider", label = "   Intensidad", min = 0, max = 1, paso = 0.05, fmt = "%.2f",
+                    desc = "Cuánto se nota.",
                     get = function() return LeerDetalle(id).opacidad end,
                     set = function(v) LeerDetalle(id).opacidad = v; AplicarDetalle(id, tipoColor) end }
                 if tipoColor > 0 then
@@ -1867,7 +1862,7 @@ local CATEGORIAS_CARA = {
             end
         end
     end },
-    { "Tattoos", function(I)
+    { "Tatuajes", function(I)
         if not EsFreemode() then return AvisoFreemode(I) end
         local cat = Catalogo()
         local hay = false
@@ -1877,7 +1872,7 @@ local CATEGORIAS_CARA = {
             if #lista > 0 then
                 hay = true
                 I[#I + 1] = { tipo = "slider", label = nombre, min = 0, max = #lista, paso = 1,
-                    fmt = function(v) if v < 1 then return "None" end; return string.format("%d / %d", v, #lista) end,
+                    fmt = function(v) if v < 1 then return "Ninguno" end; return string.format("%d / %d", v, #lista) end,
                     desc = "Mira los tatuajes de esta zona. Marca \"Llevar\" para quedártelo.",
                     get = function() return Ropa.vistaTatuaje[zona] and Ropa.vistaTatuaje[zona].i or 0 end,
                     set = function(v)
@@ -1885,11 +1880,11 @@ local CATEGORIAS_CARA = {
                         Ropa.vistaTatuaje[zona] = (v >= 1) and { lista[v][1], lista[v][2], i = v } or nil
                         AplicarTatuajes()
                     end }
-                I[#I + 1] = { tipo = "toggle", label = "   Wear this tattoo", desc = "Adds or removes the tattoo you're looking at.",
+                I[#I + 1] = { tipo = "toggle", label = "   Llevar este tatuaje", desc = "Añade o quita el tatuaje que estás mirando.",
                     get = function() local t = Ropa.vistaTatuaje[zona]; return t ~= nil and LlevaTatuaje(t) end,
                     set = function(on)
                         local t = Ropa.vistaTatuaje[zona]
-                        if not t then Avisar("Pick a tattoo first"); return end
+                        if not t then Avisar("Elige primero un tatuaje"); return end
                         if on and not LlevaTatuaje(t) then
                             table.insert(Ropa.tatuajes, { t[1], t[2] })
                         elseif not on then
@@ -1902,13 +1897,13 @@ local CATEGORIAS_CARA = {
             end
         end
         if not hay then
-            I[#I + 1] = { tipo = "texto", label = "Couldn't read the tattoo list" }
+            I[#I + 1] = { tipo = "texto", label = "No se pudo leer la lista de tatuajes" }
         end
-        I[#I + 1] = { tipo = "accion", label = "Remove all tattoos", desc = "Clears all tattoos.",
+        I[#I + 1] = { tipo = "accion", label = "Quitar todos los tatuajes", desc = "Borra todos los tatuajes.",
             fn = function()
                 Ropa.tatuajes, Ropa.vistaTatuaje = {}, {}
                 ClearPedDecorations(PlayerPedId())
-                Avisar("Tattoos removed")
+                Avisar("Tatuajes quitados")
             end }
     end },
 }
@@ -2018,9 +2013,9 @@ function ReponerApariencia()
 end
 
 -- ── Aplicar una "foto" de ropa (la de otro jugador) y comprobar qué ha quedado ──
-local NOMBRE_COMP = { [1] = "Mask", [2] = "Hairstyle", [3] = "Arms", [4] = "Pants", [5] = "Backpack",
-    [6] = "Shoes", [7] = "Neck", [8] = "T-shirt", [9] = "Vest", [10] = "Decal", [11] = "Jacket" }
-local NOMBRE_PROP = { [0] = "Hat", [1] = "Glasses", [2] = "Earrings", [6] = "Watch", [7] = "Bracelet" }
+local NOMBRE_COMP = { [1] = "Máscara", [2] = "Peinado", [3] = "Brazos", [4] = "Pantalón", [5] = "Mochila",
+    [6] = "Zapatos", [7] = "Cuello", [8] = "Camiseta", [9] = "Chaleco", [10] = "Insignia", [11] = "Chaqueta" }
+local NOMBRE_PROP = { [0] = "Sombrero", [1] = "Gafas", [2] = "Pendientes", [6] = "Reloj", [7] = "Pulsera" }
 
 local function AplicarFotoRopa(p, f)
     for c, v in pairs(f.comp) do
@@ -2051,13 +2046,13 @@ end
 -- ── Copiar la ropa de otro jugador ────────────────────────
 -- Copia todas las prendas (mochila incluida), accesorios, peinado y color de pelo
 local function CopiarRopaDe(origen, nombre)
-    if not origen or not DoesEntityExist(origen) then Avisar("That player isn't nearby anymore"); return end
+    if not origen or not DoesEntityExist(origen) then Avisar("Ese jugador ya no está cerca"); return end
     local mo = GetEntityModel(origen)
     if mo ~= GetEntityModel(PlayerPedId()) then
         -- La ropa solo vale para el mismo modelo: si es freemode, te cambias al suyo
         if mo == M_FREEMODE then CambiarModelo("mp_m_freemode_01")
         elseif mo == F_FREEMODE then CambiarModelo("mp_f_freemode_01")
-        else Avisar("They use a special (non-freemode) character: can't copy"); return end
+        else Avisar("Lleva un personaje especial (no freemode): no se puede copiar"); return end
         if GetEntityModel(PlayerPedId()) ~= mo then return end
     end
     local p, f = PlayerPedId(), FotoRopa(origen)
@@ -2075,7 +2070,7 @@ local function CopiarRopaDe(origen, nombre)
                 AplicarFotoRopa(q, f)
             else
                 print("[cargar coches] No se pudo copiar de " .. nombre .. ": " .. table.concat(fallos, ", "))
-                Avisar("Couldn't copy: " .. table.concat(fallos, ", "))
+                Avisar("No se pudo copiar: " .. table.concat(fallos, ", "))
             end
         end
         Ropa.Refijar()
@@ -2089,24 +2084,23 @@ local function CopiarRopaDe(origen, nombre)
         if tats then
             Ropa.tatuajes, Ropa.vistaTatuaje = tats, {}
             AplicarTatuajes()
-            extra = " (+" .. #tats .. " tattoos)"
+            extra = " (+" .. #tats .. " tatuajes)"
         else
-            extra = " (tattoos can't be read here)"
+            extra = " (los tatuajes no se pueden leer aquí)"
         end
     end
     -- Cara, rasgos, maquillaje y ojos (solo freemode con freemode)
     if EsFreemode() and (mo == M_FREEMODE or mo == F_FREEMODE) then
-        if CopiarCaraDe(origen) then extra = extra .. " + face" else extra = extra .. " (face couldn't be read)" end
+        if CopiarCaraDe(origen) then extra = extra .. " + cara" else extra = extra .. " (la cara no se pudo leer)" end
     end
     -- Forma de andar
     local estilo = DetectarAndar(origen)
-    if estilo then PonerAndar(estilo); extra = extra .. " + walk" else extra = extra .. " (walk: style not recognized, unchanged)" end
-    Avisar("Copied from " .. nombre .. extra)
+    if estilo then PonerAndar(estilo); extra = extra .. " + andar" else extra = extra .. " (andar: estilo no reconocido, no se cambia)" end
+    Avisar("Copiado de " .. nombre .. extra)
 end
-Ropa.CopiarDe = CopiarRopaDe   -- para copiar apuntando con la freecam
 
 local function CategoriaCopiar(I)
-    I[#I + 1] = Btn("Refresh list", function() Ropa.sucio = true end, "Searches again for nearby players.")
+    I[#I + 1] = Btn("Actualizar lista", function() Ropa.sucio = true end, "Vuelve a buscar los jugadores que tienes cerca.")
     local pos = GetEntityCoords(PlayerPedId())
     local js = {}
     for _, pid in ipairs(GetActivePlayers()) do
@@ -2116,12 +2110,12 @@ local function CategoriaCopiar(I)
         end
     end
     table.sort(js, function(a, b) return a[2] < b[2] end)
-    if #js == 0 then I[#I + 1] = { tipo = "texto", label = "No players nearby" } end
+    if #js == 0 then I[#I + 1] = { tipo = "texto", label = "No hay jugadores cerca" } end
     for _, j in ipairs(js) do
         local sid = GetPlayerServerId(j[1])
-        local nombre = (GetPlayerName(j[1]) or "Player") .. " [" .. sid .. "]"
+        local nombre = (GetPlayerName(j[1]) or "Jugador") .. " [" .. sid .. "]"
         I[#I + 1] = { tipo = "accion", label = nombre, derecha = string.format("%.0f m", j[2]),
-            desc = "Copies everything: clothes, backpack, accessories, hairstyle, hair color, tattoos, face, features, makeup, eyes and walk.",
+            desc = "Te copia todo: ropa, mochila, accesorios, peinado, color de pelo, tatuajes, cara, rasgos, maquillaje, ojos y forma de andar.",
             fn = function()
                 local pid = GetPlayerFromServerId(sid)
                 local ped = (pid and pid ~= -1) and GetPlayerPed(pid) or 0
@@ -2133,8 +2127,8 @@ end
 -- Va justo después de "Atuendos"
 do
     local pos = #CATEGORIAS_ROPA
-    for i, c in ipairs(CATEGORIAS_ROPA) do if c[1] == "Outfits" then pos = i + 1 end end
-    table.insert(CATEGORIAS_ROPA, pos, { "Copy clothes", CategoriaCopiar })
+    for i, c in ipairs(CATEGORIAS_ROPA) do if c[1] == "Atuendos" then pos = i + 1 end end
+    table.insert(CATEGORIAS_ROPA, pos, { "Copiar ropa", CategoriaCopiar })
 end
 
 -- ── Uniformes (trabajos) ──────────────────────────────────
@@ -2145,12 +2139,12 @@ end
 -- Lo que no se indica queda "desnudo" / sin accesorio. Para añadir o corregir uno, edita los números.
 -- Son los de la ropa base del juego (freemode): con ropa addon del servidor pueden verse distinto.
 local UNIFORMES = {
-    { "Police", "Police uniform with cap.",
+    { "Policía", "Uniforme de policía con gorra.",
       H = { tshirt = { 59, 1 }, torso = { 55, 0 }, arms = 41, pants = { 25, 0 }, shoes = { 25, 0 }, helmet = { 46, 0 }, ears = { 2, 0 } },
       M = { tshirt = { 36, 1 }, torso = { 48, 0 }, arms = 44, pants = { 34, 0 }, shoes = { 27, 0 }, helmet = { 45, 0 }, ears = { 2, 0 } } },
-    { "Mechanic", "Mechanic's coveralls.",
+    { "Mecánico", "Mono de trabajo de mecánico.",
       H = { tshirt = { 15, 0 }, torso = { 65, 3 }, arms = 41, pants = { 38, 2 }, shoes = { 12, 0 } } },
-    { "Paramedic", "Paramedic uniform.",
+    { "Médico", "Uniforme de sanitario.",
       H = { tshirt = { 15, 0 }, torso = { 146, 0 }, arms = 90, pants = { 24, 5 }, shoes = { 51, 0 } } },
 }
 local BASE_DESNUDO_H = { [1] = 0, [3] = 15, [4] = 21, [5] = 0, [6] = 34, [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15 }
@@ -2159,10 +2153,10 @@ local CAMPO_COMP = { mask = 1, arms = 3, pants = 4, bags = 5, shoes = 6, chain =
 local CAMPO_PROP = { helmet = 0, glasses = 1, ears = 2 }
 
 local function PonerUniforme(u)
-    if not EsFreemode() then Avisar("Uniforms are for freemode characters only"); return end
+    if not EsFreemode() then Avisar("Los uniformes son solo para personajes freemode"); return end
     local mujer = EsMujer()
     local d = mujer and u.M or u.H
-    if not d then Avisar(u[1] .. ": no " .. (mujer and "female version" or "male version")); return end
+    if not d then Avisar(u[1] .. ": no hay versión " .. (mujer and "de mujer" or "de hombre")); return end
     local f = { modelo = GetEntityModel(PlayerPedId()), comp = {}, prop = {} }
     for c, n in pairs(mujer and BASE_DESNUDO_M or BASE_DESNUDO_H) do f.comp[c] = { n, 0, 0 } end
     for k, c in pairs(CAMPO_COMP) do
@@ -2184,27 +2178,27 @@ local function PonerUniforme(u)
         if #FallosFotoRopa(q, f) > 0 then AplicarFotoRopa(q, f) end
         Ropa.Refijar()
     end)
-    Avisar("Uniform: " .. u[1])
+    Avisar("Uniforme: " .. u[1])
 end
 
 do
     local pos = #CATEGORIAS_ROPA
-    for i, c in ipairs(CATEGORIAS_ROPA) do if c[1] == "Outfits" then pos = i + 1 end end
-    table.insert(CATEGORIAS_ROPA, pos, { "Uniforms", function(I)
+    for i, c in ipairs(CATEGORIAS_ROPA) do if c[1] == "Atuendos" then pos = i + 1 end end
+    table.insert(CATEGORIAS_ROPA, pos, { "Uniformes", function(I)
         if not EsFreemode() then return AvisoFreemode(I) end
         local mujer = EsMujer()
         for _, u in ipairs(UNIFORMES) do
             local hay = (mujer and u.M or u.H) ~= nil
-            I[#I + 1] = Btn(u[1] .. (hay and "" or " (not available)"), function() PonerUniforme(u) end, u[2])
+            I[#I + 1] = Btn(u[1] .. (hay and "" or " (no disponible)"), function() PonerUniforme(u) end, u[2])
         end
     end })
 end
 
-panelCatRopa = { titulo = "Character", items = {} }
-panelRopa    = { titulo = "Clothing", items = {} }
+panelCatRopa = { titulo = "Personaje", items = {} }
+panelRopa    = { titulo = "Prendas", items = {} }
 
 for i, c in ipairs(CATEGORIAS_ROPA) do
-    panelCatRopa.items[i] = { tipo = "cat", label = c[1], desc = "Clothes: " .. c[1]:lower() .. ".",
+    panelCatRopa.items[i] = { tipo = "cat", label = c[1], desc = "Ropa: " .. c[1]:lower() .. ".",
         activo = function() return Ropa.cat == i end,
         fn = function() if Ropa.cat ~= i then Ropa.cat = i; Ropa.sucio = true end end }
 end
@@ -2225,7 +2219,7 @@ function ActualizarRopa()
     local items = {}
     local ok, err = pcall(cat[2], items)
     if not ok then items = { { tipo = "texto", label = "Error: " .. tostring(err) } } end
-    if #items == 0 then items[1] = { tipo = "texto", label = "Your character has no items of this type" } end
+    if #items == 0 then items[1] = { tipo = "texto", label = "Tu personaje no tiene prendas de este tipo" } end
     panelRopa.items = items
 end
 
@@ -2325,7 +2319,7 @@ function Guardado.Guardar(silencioso)
     for _, b in ipairs(binds) do datos.teclas[b.id] = b.tecla end
     local ok = GuardarKvp(CLAVE_AJUSTES, datos)
     Guardado.pendiente = false
-    if not silencioso then Avisar(ok and "Settings saved" or "Files can't be saved here: use Export settings") end
+    if not silencioso then Avisar(ok and "Ajustes guardados" or "Aquí no se pueden guardar archivos: usa Exportar ajustes") end
     return ok
 end
 
@@ -2355,7 +2349,7 @@ local function RestablecerAjustes()
     Teclas.LeerAtajos()
     if vehiculo and not Config.activado then Soltar() end
     Guardado.Guardar(true)
-    Avisar("Settings reset")
+    Avisar("Ajustes restablecidos")
 end
 
 -- ── Apariencia completa ───────────────────────────────────
@@ -2415,14 +2409,14 @@ end
 
 local function GuardarApariencia()
     local ok = GuardarKvp(CLAVE_APARIENCIA, CapturarApariencia())
-    Avisar(ok and "Appearance saved" or "Files can't be saved here: use Export settings")
+    Avisar(ok and "Apariencia guardada" or "Aquí no se pueden guardar archivos: usa Exportar ajustes")
 end
 
 local function CargarApariencia(silencioso)
     local a = CargarKvp(CLAVE_APARIENCIA)
-    if not a then if not silencioso then Avisar("No saved appearance") end; return end
+    if not a then if not silencioso then Avisar("No hay apariencia guardada") end; return end
     AplicarApariencia(a)
-    if not silencioso then Avisar("Appearance loaded") end
+    if not silencioso then Avisar("Apariencia cargada") end
 end
 
 -- Botones en Personaje > Utilidades
@@ -2431,34 +2425,34 @@ do
     local construir = util[2]
     util[2] = function(I)
         construir(I)
-        I[#I + 1] = { tipo = "accion", label = "Save my appearance", fn = GuardarApariencia,
-            desc = "Saves clothes, face, makeup and tattoos for next time." }
-        I[#I + 1] = { tipo = "accion", label = "Load my appearance", fn = function() CargarApariencia(false) end,
-            desc = "Applies the saved appearance." }
-        I[#I + 1] = { tipo = "toggle", label = "Load on start", key = "aparienciaAlIniciar",
-            desc = "When the script loads, applies your saved appearance automatically." }
+        I[#I + 1] = { tipo = "accion", label = "Guardar mi apariencia", fn = GuardarApariencia,
+            desc = "Guarda ropa, cara, maquillaje y tatuajes para la próxima vez." }
+        I[#I + 1] = { tipo = "accion", label = "Cargar mi apariencia", fn = function() CargarApariencia(false) end,
+            desc = "Te pone la apariencia guardada." }
+        I[#I + 1] = { tipo = "toggle", label = "Cargar al iniciar", key = "aparienciaAlIniciar",
+            desc = "Al cargar el script, te pone la apariencia guardada automáticamente." }
     end
 end
 
 local PREFIJO = "SGMENU1:"
 
 function Guardado.Exportar()
-    if type(Susano.CopyToClipboard) ~= "function" then Avisar("Your Susano has no clipboard"); return end
+    if type(Susano.CopyToClipboard) ~= "function" then Avisar("Tu Susano no tiene portapapeles"); return end
     local datos = { config = {}, teclas = {}, atuendos = Ropa.atuendos, apariencia = CapturarApariencia() }
     for k, v in pairs(Config) do if type(v) ~= "table" then datos.config[k] = v end end
     for _, b in ipairs(binds) do datos.teclas[b.id] = b.tecla end
     local ok = pcall(Susano.CopyToClipboard, PREFIJO .. Serializar(datos))
-    Avisar(ok and "Copied: paste it into a .txt to save it" or "Couldn't copy")
+    Avisar(ok and "Copiado: pégalo en un .txt para guardarlo" or "No se pudo copiar")
 end
 
 function Guardado.Importar()
-    if type(Susano.GetClipboardText) ~= "function" then Avisar("Your Susano has no clipboard"); return end
+    if type(Susano.GetClipboardText) ~= "function" then Avisar("Tu Susano no tiene portapapeles"); return end
     local ok, texto = pcall(Susano.GetClipboardText)
     if not ok or type(texto) ~= "string" or texto:sub(1, #PREFIJO) ~= PREFIJO then
-        Avisar("Copy an exported text first (starts with " .. PREFIJO .. ")"); return
+        Avisar("Copia primero un texto exportado (empieza por " .. PREFIJO .. ")"); return
     end
     local datos = Deserializar(texto:sub(#PREFIJO + 1))
-    if not datos then Avisar("The copied text isn't valid"); return end
+    if not datos then Avisar("El texto copiado no es válido"); return end
     if type(datos.config) == "table" then
         for k, v in pairs(datos.config) do
             if CONFIG_DEFECTO[k] ~= nil and type(v) == type(CONFIG_DEFECTO[k]) then Config[k] = v end
@@ -2475,7 +2469,7 @@ function Guardado.Importar()
     if type(datos.apariencia) == "table" then AplicarApariencia(datos.apariencia) end
     if vehiculo and not Config.activado then Soltar() end
     Guardado.pendiente = true
-    Avisar("Settings imported")
+    Avisar("Ajustes importados")
 end
 
 Guardado.Restablecer = RestablecerAjustes
@@ -2500,19 +2494,19 @@ Pos = { activo = false, npc = nil, cam = nil, yaw = 0.0, pitch = -10.0, apuntado
 
 local ANIMALES = {
     { "Husky", "a_c_husky" }, { "Retriever", "a_c_retriever" }, { "Rottweiler", "a_c_rottweiler" },
-    { "Shepherd", "a_c_shepherd" }, { "Poodle", "a_c_poodle" }, { "Cat", "a_c_cat_01" },
-    { "Coyote", "a_c_coyote" }, { "Cougar", "a_c_mtlion" }, { "Deer", "a_c_deer" }, { "Boar", "a_c_boar" },
-    { "Cow", "a_c_cow" }, { "Pig", "a_c_pig" }, { "Hen", "a_c_hen" }, { "Rabbit", "a_c_rabbit_01" },
-    { "Rat", "a_c_rat" }, { "Chimp", "a_c_chimp" },
+    { "Pastor", "a_c_shepherd" }, { "Caniche", "a_c_poodle" }, { "Gato", "a_c_cat_01" },
+    { "Coyote", "a_c_coyote" }, { "Puma", "a_c_mtlion" }, { "Ciervo", "a_c_deer" }, { "Jabalí", "a_c_boar" },
+    { "Vaca", "a_c_cow" }, { "Cerdo", "a_c_pig" }, { "Gallina", "a_c_hen" }, { "Conejo", "a_c_rabbit_01" },
+    { "Rata", "a_c_rat" }, { "Chimpancé", "a_c_chimp" },
 }
 local nombresAnimales = {}
 for i, a in ipairs(ANIMALES) do nombresAnimales[i] = a[1] end
 
 local HUMANOS = {
-    { "Skater", "a_m_y_skater_01" }, { "Jogger", "a_m_y_runner_01" }, { "Worker", "s_m_y_construct_01" },
-    { "Police", "s_m_y_cop_01" }, { "Paramedic", "s_m_m_paramedic_01" }, { "Gang member", "g_m_y_ballaorig_01" },
-    { "Biker", "g_m_y_lost_01" }, { "Bodybuilder", "a_m_y_musclbeac_01" }, { "Executive", "a_f_y_business_01" },
-    { "Tourist", "a_f_y_tourist_01" }, { "Hobo", "a_m_m_tramp_01" }, { "Clown", "s_m_y_clown_01" },
+    { "Skater", "a_m_y_skater_01" }, { "Deportista", "a_m_y_runner_01" }, { "Obrero", "s_m_y_construct_01" },
+    { "Policía", "s_m_y_cop_01" }, { "Médico", "s_m_m_paramedic_01" }, { "Pandillero", "g_m_y_ballaorig_01" },
+    { "Motero", "g_m_y_lost_01" }, { "Culturista", "a_m_y_musclbeac_01" }, { "Ejecutiva", "a_f_y_business_01" },
+    { "Turista", "a_f_y_tourist_01" }, { "Vagabundo", "a_m_m_tramp_01" }, { "Payaso", "s_m_y_clown_01" },
 }
 local nombresHumanos = {}
 for i, p in ipairs(HUMANOS) do nombresHumanos[i] = p[1] end
@@ -2597,10 +2591,10 @@ local function PrepararRed(npc)
             SetEntityAsMissionEntity(npc, true, true)
             Citizen.Wait(0)
             if not IsEntityAMissionEntity(npc) then
-                Paso("not registered on the network: the game won't accept it as your own NPC")
-                Avisar("This NPC can't be shared without the server deleting it. Use 'Create shared NPC' or set onesync_population true.")
+                Paso("no se registra en red: el juego no lo acepta como NPC propio")
+                Avisar("Este NPC no se puede compartir sin que el servidor lo borre. Usa 'Crear NPC compartido' o pon onesync_population true.")
             else
-                Paso("registering NPC on the network")
+                Paso("registrando NPC en red")
                 NetworkRegisterEntityAsNetworked(npc)
                 local t = 0
                 while not NetworkGetEntityIsNetworked(npc) and t < 20 do Citizen.Wait(25); t = t + 1 end
@@ -2615,8 +2609,8 @@ local function PrepararRed(npc)
             Citizen.Wait(25); t = t + 1
         end
         if not NetworkHasControlOfEntity(npc) then
-            Paso("no network control of the NPC (trying anyway)")
-            Avisar("Note: another client owns this NPC; it may not obey")
+            Paso("sin control de red del NPC (se intenta igualmente)")
+            Avisar("Aviso: otro cliente es el dueño de este NPC; puede que no obedezca")
             return true, nil, npc
         end
         if NetworkGetEntityIsNetworked(npc) then
@@ -2630,7 +2624,7 @@ local function PrepararRed(npc)
             if e and e ~= 0 and DoesEntityExist(e) then npc = e end
         else
             Pos.redId = nil
-            if Config.compartirNpc then Avisar("Note: the server won't let this NPC be shared; only you'll see it") end
+            if Config.compartirNpc then Avisar("Aviso: el servidor no deja compartir este NPC; solo lo verás tú") end
         end
     end
     return true, nil, npc
@@ -2640,14 +2634,14 @@ local ControlarAhora
 
 -- Cómo está el NPC en la red: si el servidor lo conoce y si eres tú quien lo manda
 local function EstadoRed(npc)
-    if not npc or not DoesEntityExist(npc) then return "no NPC" end
-    if not NetworkIsSessionStarted() then return "no network session" end
+    if not npc or not DoesEntityExist(npc) then return "sin NPC" end
+    if not NetworkIsSessionStarted() then return "sin sesión de red" end
     if not NetworkGetEntityIsNetworked(npc) then
-        return "local only: the server doesn't know it"
+        return "solo local: el servidor no lo conoce"
     end
     local dueno = NetworkGetEntityOwner(npc)
-    if dueno == PlayerId() then return "shared and yours (others see it)" end
-    return "shared, but another player controls it"
+    if dueno == PlayerId() then return "compartido y tuyo (los demás lo ven)" end
+    return "compartido, pero lo manda otro jugador"
 end
 
 
@@ -2657,7 +2651,7 @@ local function Controlar(npc, creadoPorMi)
     Pos.ocupado = true
     Citizen.CreateThread(function()
         local ok, err = pcall(ControlarAhora, npc, creadoPorMi)
-        if not ok then print("[cargar coches] Error al controlar: " .. tostring(err)); Avisar("Couldn't take control") end
+        if not ok then print("[cargar coches] Error al controlar: " .. tostring(err)); Avisar("No se pudo controlar") end
         Pos.ocupado = false
     end)
 end
@@ -2676,7 +2670,7 @@ function ControlarAhora(npc, creadoPorMi)
         for _, o in ipairs(GetGamePool("CPed")) do
             if GetEntityModel(o) == modelo and #(GetEntityCoords(o) - pos0) < 2.0 and not IsPedAPlayer(o) then npc = o; break end
         end
-        if not DoesEntityExist(npc) then Avisar("The NPC vanished while preparing it"); Paso("vanished while preparing it"); return end
+        if not DoesEntityExist(npc) then Avisar("El NPC ha desaparecido al prepararlo"); Paso("desaparecido al prepararlo"); return end
     end
     if not IsPedInAnyVehicle(npc, false) then
         ClearPedTasksImmediately(npc)       -- deja de hacer lo que hacía (sentado, apoyado...)
@@ -2716,14 +2710,14 @@ function ControlarAhora(npc, creadoPorMi)
     Paso("camara: " .. Pos.modoCam)
     local estado = EstadoRed(npc)
     Paso("red: " .. estado)
-    Avisar("NPC network: " .. estado)
-    Avisar("Controlling NPC · " .. NombreTecla(TeclaDe("volver")) .. " to release it")
+    Avisar("Red del NPC: " .. estado)
+    Avisar("Controlando NPC · " .. NombreTecla(TeclaDe("volver")) .. " para soltarlo")
 end
 
 function Soltar_(motivo)
     if not Pos.activo then return end
     Paso("soltando" .. (motivo and (": " .. motivo) or ""))
-    if motivo then Avisar("Released: " .. motivo) end
+    if motivo then Avisar("Control soltado: " .. motivo) end
     local npc = Pos.npc
     if Pos.cam then
         RenderScriptCams(false, false, 0, true, false)
@@ -2782,19 +2776,19 @@ local function ManejarNpc(menuAbierto)
         -- Mismo NPC con otro identificador: buscarlo donde estaba, con el mismo modelo
         for _, o in ipairs(GetGamePool("CPed")) do
             if GetEntityModel(o) == Pos.modeloNpc and #(GetEntityCoords(o) - Pos.ultimaPos) < 3.0 and not IsPedAPlayer(o) then
-                Paso("NPC recovered with a different id")
+                Paso("NPC recuperado con otro identificador")
                 npc = o; Pos.npc = o
                 break
             end
         end
     end
-    if not npc or not DoesEntityExist(npc) then Soltar_("the NPC vanished"); return end
+    if not npc or not DoesEntityExist(npc) then Soltar_("el NPC ha desaparecido"); return end
     Pos.ultimaPos, Pos.modeloNpc = GetEntityCoords(npc), GetEntityModel(npc)
 
     -- Si muere, se suelta a los 2 segundos
     if IsPedDeadOrDying(npc, true) then
         Pos.muerteDesde = Pos.muerteDesde or GetGameTimer()
-        if GetGameTimer() - Pos.muerteDesde > 2000 then Pos.muerteDesde = nil; Soltar_("the NPC died") end
+        if GetGameTimer() - Pos.muerteDesde > 2000 then Pos.muerteDesde = nil; Soltar_("el NPC ha muerto") end
     else
         Pos.muerteDesde = nil
     end
@@ -2991,7 +2985,7 @@ local function ManejarNpc(menuAbierto)
         local vel = IsDisabledControlPressed(0, 21) and 3.0 or 1.0
         -- Atascado: con las teclas pulsadas y sin moverse durante un momento
         if Pos.ultimaDir and ahora - Pos.ultimaOrden > 600 and GetEntitySpeed(npc) < 0.3 then
-            Paso("NPC stuck: forcing movement")
+            Paso("NPC atascado: forzando movimiento")
             ClearPedTasksImmediately(npc)
             DetachEntity(npc, true, false)
             FreezeEntityPosition(npc, false)
@@ -3027,7 +3021,7 @@ end
 function PosesionFrame(ped, pPoseer, pVolver, menuAbierto)
     if Pos.activo then
         ManejarNpc(menuAbierto)
-        if pVolver then Soltar_("key " .. NombreTecla(TeclaDe("volver"))) end
+        if pVolver then Soltar_("tecla " .. NombreTecla(TeclaDe("volver"))) end
         return
     end
     if menuAbierto or not Config.posesion then Pos.apuntado = nil; return end
@@ -3049,12 +3043,12 @@ function LineaPosesion()
     if Pos.activo then
         local npc = Pos.npc
         if npc and DoesEntityExist(npc) and IsPedInAnyVehicle(npc, false) then
-            return "WASD drive   Shift floor it   Space brake   F exit   " .. K("volver") .. " release"
+            return "WASD conducir   Shift a tope   Espacio freno   F bajar   " .. K("volver") .. " soltar"
         end
-        return "WASD move   Shift run   Space jump   F vehicle   Hold click to fight (release to stop)   " .. K("volver") .. " release"
+        return "WASD mover   Shift correr   Espacio saltar   F coche   Mantén clic pegar (suelta para parar)   " .. K("volver") .. " soltar"
     end
     if not Config.posesion then return nil end
-    if Pos.apuntado then return K("poseer") .. " Control NPC" end
+    if Pos.apuntado then return K("poseer") .. " Controlar NPC" end
     return nil
 end
 
@@ -3062,16 +3056,16 @@ end
 -- Al nacer ya en red y como NPC propio, el servidor lo acepta y los demás jugadores lo ven.
 local function AparecerPed(modelo, tipoPed, nombre)
     local h = GetHashKey(modelo)
-    if not IsModelInCdimage(h) then Avisar(nombre .. " doesn't exist in this game"); return end
+    if not IsModelInCdimage(h) then Avisar(nombre .. " no existe en este juego"); return end
     RequestModel(h)
     local t = 0
     while not HasModelLoaded(h) and t < 300 do Citizen.Wait(10); t = t + 1 end
-    if not HasModelLoaded(h) then Avisar("Couldn't load " .. nombre); return end
+    if not HasModelLoaded(h) then Avisar("No se pudo cargar " .. nombre); return end
     local me = PlayerPedId()
     local c = GetOffsetFromEntityInWorldCoords(me, 0.0, 2.5, 0.0)
     local ped = CreatePed(tipoPed, h, c.x, c.y, c.z, GetEntityHeading(me), true, true)
     SetModelAsNoLongerNeeded(h)
-    if not ped or ped == 0 then Avisar("Couldn't create " .. nombre); return end
+    if not ped or ped == 0 then Avisar("No se pudo crear " .. nombre); return end
     SetEntityAsMissionEntity(ped, true, true)
     -- Esperar a que el servidor lo tenga
     t = 0
@@ -3079,11 +3073,11 @@ local function AparecerPed(modelo, tipoPed, nombre)
         Citizen.Wait(25); t = t + 1
     end
     if not DoesEntityExist(ped) then
-        Avisar("The server deleted the NPC (sv_entityLockdown strict). Set it to relaxed or inactive.")
+        Avisar("El servidor ha borrado el NPC (sv_entityLockdown strict). Ponlo en relaxed o inactive.")
         return
     end
     if NetworkIsSessionStarted() and not NetworkGetEntityIsNetworked(ped) then
-        Avisar("The NPC couldn't be shared; only you'll see it")
+        Avisar("El NPC no se ha podido compartir; solo lo verás tú")
     end
     Controlar(ped, true)
 end
@@ -3099,64 +3093,64 @@ local function AparecerHumano()
 end
 
 panelPosesion = { titulo = "Control", items = {
-    { tipo = "toggle", label = "Enabled", key = "posesion",
-      desc = "Aim at an NPC and press the key to control it remotely. Also from the list." },
-    { tipo = "toggle", label = "Arrow over the aimed NPC", key = "contornoNpc",
-      desc = "Puts an arrow over the NPC you aim at." },
-    { tipo = "toggle", label = "Aggressive NPC", key = "npcAgresivo",
-      desc = "Unarmed, clicking hits whoever you look at. With this, if nobody's near it goes for the closest one (20 m)." },
+    { tipo = "toggle", label = "Activado", key = "posesion",
+      desc = "Apunta a un NPC y pulsa la tecla para controlarlo a distancia. También desde la lista." },
+    { tipo = "toggle", label = "Flecha sobre el NPC apuntado", key = "contornoNpc",
+      desc = "Pone una flecha encima del NPC al que apuntas." },
+    { tipo = "toggle", label = "NPC agresivo", key = "npcAgresivo",
+      desc = "Sin arma, al hacer clic pega a quien mires. Con esto, si no hay nadie cerca va a por el más cercano (20 m)." },
     { tipo = "texto", label = function()
           local s = Pos.ServidorComparte()
-          if s == nil then return "Server: no NPCs nearby to check" end
-          return s and "Server: shares NPCs (others see them)" or "Server: street NPCs are local only"
+          if s == nil then return "Servidor: sin NPCs cerca para comprobarlo" end
+          return s and "Servidor: comparte los NPCs (los demás los ven)" or "Servidor: NPCs de la calle solo locales"
       end },
     { tipo = "texto", label = function()
-          if not Pos.activo then return "Network: no controlled NPC" end
-          return "Network: " .. EstadoRed(Pos.npc)
+          if not Pos.activo then return "Red: sin NPC controlado" end
+          return "Red: " .. EstadoRed(Pos.npc)
       end },
-    { tipo = "lista", label = "Person", opciones = nombresHumanos, desc = "Pick which NPC to create.",
+    { tipo = "lista", label = "Persona", opciones = nombresHumanos, desc = "Elige qué NPC crear.",
       get = function() return Pos.humano end, set = function(i) Pos.humano = i end },
-    { tipo = "accion", label = "Create shared NPC and control it",
-      desc = "Spawns beside you already shared with the server: other players see it move, fight and drive.",
+    { tipo = "accion", label = "Crear NPC compartido y controlarlo",
+      desc = "Aparece a tu lado ya compartido con el servidor: los demás jugadores lo ven moverse, pegar y conducir.",
       fn = function() Citizen.CreateThread(AparecerHumano) end },
-    { tipo = "toggle", label = "Share street NPCs", key = "compartirNpc",
-      desc = "Tries to share a street NPC that only exists in your game. If the server doesn't share population, it's left alone so it doesn't vanish." },
-    { tipo = "toggle", label = "Protect your body", key = "protegerCuerpo",
-      desc = "While you control an NPC, your character can't be hurt." },
-    { tipo = "slider", label = "Aim range", key = "alcancePosesion", min = 5, max = 150, paso = 5, fmt = "%.0f m",
-      desc = "Max distance to grab an NPC by aiming at it." },
-    { tipo = "slider", label = "List radius", key = "radioLista", min = 25, max = 500, paso = 25, fmt = "%.0f m",
-      desc = "How far out NPCs show up in the list on the right." },
-    { tipo = "toggle", label = "Use custom camera", key = "camaraPropia",
-      desc = "Off: the normal game camera follows the NPC. On: custom camera (in case the other doesn't work). Applies when you grab another NPC." },
-    { tipo = "slider", label = "Custom camera distance", key = "distanciaCamara", min = 2, max = 12, paso = 0.5, fmt = "%.1f m",
-      desc = "How far the custom camera sits behind the NPC." },
-    { tipo = "accion", label = "Give pistol to NPC", desc = "The NPC you control gets a pistol.",
+    { tipo = "toggle", label = "Compartir NPCs de la calle", key = "compartirNpc",
+      desc = "Intenta compartir un NPC de la calle que solo existe en tu juego. Si el servidor no comparte población, no se toca para que no desaparezca." },
+    { tipo = "toggle", label = "Proteger tu cuerpo", key = "protegerCuerpo",
+      desc = "Mientras controlas a un NPC, a tu personaje no le pueden hacer daño." },
+    { tipo = "slider", label = "Alcance al apuntar", key = "alcancePosesion", min = 5, max = 150, paso = 5, fmt = "%.0f m",
+      desc = "Distancia máxima para coger un NPC apuntándolo." },
+    { tipo = "slider", label = "Radio de la lista", key = "radioLista", min = 25, max = 500, paso = 25, fmt = "%.0f m",
+      desc = "Hasta qué distancia salen NPCs en la lista de la derecha." },
+    { tipo = "toggle", label = "Usar cámara propia", key = "camaraPropia",
+      desc = "Apagado: la cámara normal del juego sigue al NPC. Encendido: cámara propia (por si la otra no va). Se aplica al coger otro NPC." },
+    { tipo = "slider", label = "Distancia de la cámara propia", key = "distanciaCamara", min = 2, max = 12, paso = 0.5, fmt = "%.1f m",
+      desc = "Lo lejos que va la cámara propia detrás del NPC." },
+    { tipo = "accion", label = "Dar pistola al NPC", desc = "El NPC que controlas recibe una pistola.",
       fn = function()
           if Pos.activo and Pos.npc then
-              GiveWeaponToPed(Pos.npc, GetHashKey("WEAPON_PISTOL"), 120, false, true); Avisar("Pistol given")
-          else Avisar("You're not controlling anyone") end
+              GiveWeaponToPed(Pos.npc, GetHashKey("WEAPON_PISTOL"), 120, false, true); Avisar("Pistola entregada")
+          else Avisar("No estás controlando a nadie") end
       end },
-    { tipo = "accion", label = "Stop controlling", desc = "Releases the NPC and returns to your camera.",
-      fn = function() if Pos.activo then Soltar_() else Avisar("You're not controlling anyone") end end },
-    { tipo = "lista", label = "Animal", opciones = nombresAnimales, desc = "Pick an animal.",
+    { tipo = "accion", label = "Dejar de controlar", desc = "Suelta al NPC y vuelves a tu cámara.",
+      fn = function() if Pos.activo then Soltar_() else Avisar("No estás controlando a nadie") end end },
+    { tipo = "lista", label = "Animal", opciones = nombresAnimales, desc = "Elige un animal.",
       get = function() return Pos.animal end, set = function(i) Pos.animal = i end },
-    { tipo = "accion", label = "Spawn animal and control it", desc = "The animal spawns beside you and you control it.",
+    { tipo = "accion", label = "Aparecer animal y controlarlo", desc = "El animal aparece a tu lado y lo manejas tú.",
       fn = function() Citizen.CreateThread(AparecerAnimal) end },
 } }
 
 -- ── Lista de NPCs cercanos ───────────────────────────────
-panelCercanos = { titulo = "Nearby NPCs", items = {} }
+panelCercanos = { titulo = "NPCs cerca", items = {} }
 
 local function TipoNpc(npc)
     local tipo
     if GetPedType(npc) == 28 then tipo = "Animal"
-    elseif IsPedMale(npc) then tipo = "Man" else tipo = "Woman" end
+    elseif IsPedMale(npc) then tipo = "Hombre" else tipo = "Mujer" end
     local veh = GetVehiclePedIsIn(npc, false)
     if veh ~= 0 then
-        tipo = tipo .. ((GetPedInVehicleSeat(veh, -1) == npc) and " driving" or " in vehicle")
+        tipo = tipo .. ((GetPedInVehicleSeat(veh, -1) == npc) and " conduciendo" or " en vehículo")
     elseif IsPedArmed(npc, 4) then
-        tipo = tipo .. " armed"
+        tipo = tipo .. " armado"
     end
     return tipo
 end
@@ -3181,23 +3175,23 @@ function ActualizarCercanos(forzar)
     end
     table.sort(lista, function(a, b) return a[2] < b[2] end)
     local items = {
-        { tipo = "accion", label = "Refresh list", desc = "Searches again for nearby NPCs.",
-          fn = function() ActualizarCercanos(true); Avisar("List refreshed") end },
+        { tipo = "accion", label = "Actualizar lista", desc = "Vuelve a buscar NPCs cerca.",
+          fn = function() ActualizarCercanos(true); Avisar("Lista actualizada") end },
     }
     for i = 1, math.min(#lista, 60) do
         local n, d = lista[i][1], lista[i][2]
         local red = NetworkGetEntityIsNetworked(n) and "red · " or "local · "
         items[#items + 1] = { tipo = "accion", label = TipoNpc(n), derecha = red .. string.format("%.0f m", d), npc = n,
-            desc = "Control it remotely. You stay where you are.",
+            desc = "Contrólalo a distancia. Tú te quedas donde estás.",
             fn = function()
                 if DoesEntityExist(n) and not IsPedDeadOrDying(n, true) then
                     Menu.abierto = false
                     Controlar(n, false)
-                else Avisar("That NPC is gone") end
+                else Avisar("Ese NPC ya no está") end
             end }
     end
-    if #lista == 0 then items[#items + 1] = { tipo = "texto", label = "No NPCs nearby" } end
-    panelCercanos.titulo = "Nearby NPCs (" .. #lista .. ")"
+    if #lista == 0 then items[#items + 1] = { tipo = "texto", label = "No hay NPCs cerca" } end
+    panelCercanos.titulo = "NPCs cerca (" .. #lista .. ")"
     panelCercanos.items = items
 end
 
@@ -3246,7 +3240,7 @@ end
 
 local function NombreObjetivo()
     local o = Animac.obj
-    if not o then return "You" end
+    if not o then return "Tú" end
     return o.nombre or "?"
 end
 
@@ -3276,7 +3270,7 @@ local function Mirar(a, b)
 end
 
 local function Reproducir(ped, dict, clip, bucle, soloArriba)
-    if not CargarAnim(dict) then Avisar("Couldn't load the animation"); return false end
+    if not CargarAnim(dict) then Avisar("No se pudo cargar la animación"); return false end
     local flag = bucle and 1 or 0
     if soloArriba then flag = flag + 48 end
     TaskPlayAnim(ped, dict, clip, 3.0, -3.0, -1, flag, 0.0, false, false, false)
@@ -3291,15 +3285,15 @@ local function Hacer(a)
         local ok, err = pcall(function()
             local me = PlayerPedId()
             local ped, esJugador = Objetivo()
-            if not ped then Avisar(NombreObjetivo() .. " is gone"); Animac.obj = nil; return end
+            if not ped then Avisar(NombreObjetivo() .. " ya no está"); Animac.obj = nil; return end
             local bucle = a[4] or Config.animBucle
             if ped == me then
-                if IsPedInAnyVehicle(me, false) then Avisar("Get out of the vehicle first"); return end
+                if IsPedInAnyVehicle(me, false) then Avisar("Bájate del vehículo primero"); return end
                 ClearPedTasks(me)
                 Reproducir(me, a[2], a[3], bucle, Config.animSoloArriba)
             elseif esJugador then
                 -- No se puede animar a otro jugador: la haces tú mirándole
-                if IsPedInAnyVehicle(me, false) then Avisar("Get out of the vehicle first"); return end
+                if IsPedInAnyVehicle(me, false) then Avisar("Bájate del vehículo primero"); return end
                 ClearPedTasks(me)
                 Mirar(me, ped)
                 Reproducir(me, a[2], a[3], bucle, false)
@@ -3347,7 +3341,7 @@ local function PararTodo()
             if DoesEntityExist(npc) then PararPed(npc); n = n + 1 end
             Animac.animados[npc] = nil
         end
-        Avisar("Animations stopped (" .. n .. " NPC" .. (n == 1 and "" or "s") .. ")")
+        Avisar("Animaciones paradas (" .. n .. " NPC" .. (n == 1 and "" or "s") .. ")")
     end)
 end
 Animac.Parar = Parar
@@ -3357,7 +3351,7 @@ Animac.Parar = Parar
 -- (menús de emotes, addons, trabajos...), saca las parejas diccionario/animación que usan
 -- y se queda solo con los diccionarios que existen de verdad en el juego (base + addons
 -- que el servidor ha cargado), comprobándolo con DoesAnimDictExist.
-local Todas = { estado = "not loaded", progreso = "", nombres = {}, lista = {}, origen = {} }
+local Todas = { estado = "sin cargar", progreso = "", nombres = {}, lista = {}, origen = {} }
 
 -- Nombres típicos para probar cuando el manifiesto usa comodines (client/*.lua)
 local NOMBRES_TIPICOS = {
@@ -3673,7 +3667,7 @@ local function Escanear()
                     nombres[#nombres + 1] = d; lista[#nombres] = e.clips; origen[#nombres] = e.origen
                 end
                 if k % 150 == 0 then
-                    Todas.progreso = "checking " .. k .. "/" .. #orden
+                    Todas.progreso = "comprobando " .. k .. "/" .. #orden
                     Citizen.Wait(0)
                 end
             end
@@ -3687,9 +3681,9 @@ local function Escanear()
 
             -- Lista de todas las del GTA (va comprimida en el menú; solo se descomprime una vez)
             if not Todas.base then
-                Todas.progreso = "GTA list"
+                Todas.progreso = "lista del GTA"
                 local txt, total = CargarListaGta(function() Citizen.Wait(0) end, function(p)
-                    Todas.progreso = string.format("GTA list %d%%", math.floor(p * 100))
+                    Todas.progreso = string.format("lista del GTA %d%%", math.floor(p * 100))
                 end)
                 if txt then
                     local inicios, k, p = {}, 0, 1
@@ -3710,7 +3704,7 @@ local function Escanear()
         if ok then Todas.estado = "lista"
             local total = 0
             for _, l in ipairs(Todas.lista) do total = total + #l end
-            Avisar(#Todas.nombres .. " dictionaries · " .. total .. " animations found")
+            Avisar(#Todas.nombres .. " diccionarios · " .. total .. " animaciones encontradas")
         else Todas.estado = "error"; Todas.error = tostring(err); print("[cargar coches] escanear animaciones: " .. tostring(err)) end
         Animac.sucio, Animac.arriba = true, true
     end)
@@ -3721,13 +3715,13 @@ local function Libre(dicc, clip)
 end
 
 -- ═══ Interfaz: izquierda = buscar en todas las del servidor · derecha = a quién + parar ═══
-local itemBuscar = { tipo = "campo", label = "Search", placeholder = "Search animation...", max = 40,
-    desc = "Click and type: searches by name, animation, dictionary or resource.",
+local itemBuscar = { tipo = "campo", label = "Buscar", placeholder = "Buscar animación...", max = 40,
+    desc = "Haz clic y escribe: busca por nombre, animación, diccionario o recurso.",
     get = function() return Animac.busqueda or "" end,
     set = function(t) Animac.busqueda, Animac.pagina = t, 1; Animac.sucio, Animac.arriba = true, true end }
 
-panelAnimCat = { titulo = "All animations", items = { itemBuscar } }
-panelAnimOpc = { titulo = "Target", items = {} }
+panelAnimCat = { titulo = "Todas las animaciones", items = { itemBuscar } }
+panelAnimOpc = { titulo = "A quién", items = {} }
 
 -- Todas las animaciones en una sola lista (se rehace después de cada escaneo)
 local function Plano()
@@ -3799,14 +3793,14 @@ local POR_PAGINA = 30
 
 local function ListaIzquierda()
     local items = { itemBuscar }
-    if Todas.estado == "not loaded" then Escanear() end
+    if Todas.estado == "sin cargar" then Escanear() end
     if Todas.estado == "cargando" then
-        items[#items + 1] = { tipo = "texto", label = function() return "Loading " .. Todas.progreso end }
+        items[#items + 1] = { tipo = "texto", label = function() return "Cargando " .. Todas.progreso end }
         return items
     elseif Todas.estado == "error" then
         items[#items + 1] = { tipo = "texto", label = "Error: " .. tostring(Todas.error) }
-        items[#items + 1] = { tipo = "accion", label = "Try again", derecha = "",
-            fn = function() Todas.estado = "not loaded"; Animac.sucio = true end }
+        items[#items + 1] = { tipo = "accion", label = "Volver a intentar", derecha = "",
+            fn = function() Todas.estado = "sin cargar"; Animac.sucio = true end }
         return items
     end
     local todas = Plano()
@@ -3829,41 +3823,41 @@ local function ListaIzquierda()
     local paginas = math.max(1, math.ceil(#res / POR_PAGINA))
     Animac.pagina = Clamp(Animac.pagina or 1, 1, paginas)
     local pagina = Animac.pagina
-    items[#items + 1] = { tipo = "texto", label = (q ~= "" and ((#res - deGta) .. " from the server · " .. deGta .. (deGta >= topeGta and "+" or "") .. " from GTA")
-        or (#res .. " from server scripts")) .. (paginas > 1 and ("  ·  page " .. pagina .. "/" .. paginas) or "") }
+    items[#items + 1] = { tipo = "texto", label = (q ~= "" and ((#res - deGta) .. " del servidor · " .. deGta .. (deGta >= topeGta and "+" or "") .. " del GTA")
+        or (#res .. " de scripts del servidor")) .. (paginas > 1 and ("  ·  pág. " .. pagina .. "/" .. paginas) or "") }
     if q == "" then
         if Todas.base then
             local total = tostring(Todas.base.total):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
-            items[#items + 1] = { tipo = "texto", label = "Type to search among " .. total .. " from GTA" }
+            items[#items + 1] = { tipo = "texto", label = "Escribe para buscar entre " .. total .. " del GTA" }
         else
-            items[#items + 1] = { tipo = "texto", label = "Couldn't load the GTA list" }
+            items[#items + 1] = { tipo = "texto", label = "No se pudo cargar la lista del GTA" }
         end
     end
     local desde = (pagina - 1) * POR_PAGINA + 1
     for k = desde, math.min(#res, desde + POR_PAGINA - 1) do
         local a = res[k]
         items[#items + 1] = { tipo = "accion", label = a.e or a.c, derecha = a.o,
-            desc = function() return a.d .. " / " .. a.c .. "  ·  to: " .. NombreObjetivo() end,
+            desc = function() return a.d .. " / " .. a.c .. "  ·  a: " .. NombreObjetivo() end,
             fn = function() Libre(a.d, a.c) end }
     end
     if pagina < paginas then
-        items[#items + 1] = { tipo = "accion", label = "Next page ›", derecha = "",
-            desc = "Shift + Enter jumps 10 pages.",
+        items[#items + 1] = { tipo = "accion", label = "Página siguiente ›", derecha = "",
+            desc = "Shift + Enter salta 10 páginas.",
             fn = function() Animac.pagina = pagina + (Tecla(0x10) and 10 or 1); Animac.sucio, Animac.arriba = true, true end }
     end
     if pagina > 1 then
-        items[#items + 1] = { tipo = "accion", label = "‹ Previous page", derecha = "",
-            desc = "Shift + Enter jumps 10 pages.",
+        items[#items + 1] = { tipo = "accion", label = "‹ Página anterior", derecha = "",
+            desc = "Shift + Enter salta 10 páginas.",
             fn = function() Animac.pagina = pagina - (Tecla(0x10) and 10 or 1); Animac.sucio, Animac.arriba = true, true end }
     end
     if #res == 0 then
-        items[#items + 1] = { tipo = "texto", label = q ~= "" and "Nothing for that search" or
-            ((Todas.leidos or 0) .. " scripts · " .. (Todas.candidatos or 0) .. " possible · 0 valid") }
+        items[#items + 1] = { tipo = "texto", label = q ~= "" and "Nada con esa búsqueda" or
+            ((Todas.leidos or 0) .. " scripts · " .. (Todas.candidatos or 0) .. " posibles · 0 válidos") }
     end
-    items[#items + 1] = { tipo = "accion", label = "Re-read the server", derecha = "",
-        desc = "Searches the resources for animations again (if the server loaded something new).",
-        fn = function() Todas.estado = "not loaded"; Animac.sucio, Animac.arriba = true, true end }
-    panelAnimCat.titulo = "All animations"
+    items[#items + 1] = { tipo = "accion", label = "Volver a leer el servidor", derecha = "",
+        desc = "Vuelve a buscar animaciones en los recursos (si el servidor ha cargado algo nuevo).",
+        fn = function() Todas.estado = "sin cargar"; Animac.sucio, Animac.arriba = true, true end }
+    panelAnimCat.titulo = "Todas las animaciones"
     return items
 end
 
@@ -3871,9 +3865,9 @@ local function ListaGente()
     local me = PlayerPedId()
     local pos = GetEntityCoords(me)
     local items = {
-        { tipo = "accion", label = "You", derecha = Animac.obj == nil and "elegido" or "",
-          desc = "The animations play on you.",
-          fn = function() Animac.obj = nil; Animac.genteSucia = true; Avisar("Target: you") end },
+        { tipo = "accion", label = "Tú", derecha = Animac.obj == nil and "elegido" or "",
+          desc = "Las animaciones te las haces a ti.",
+          fn = function() Animac.obj = nil; Animac.genteSucia = true; Avisar("Objetivo: tú") end },
     }
     local jugadores = {}
     for _, pid in ipairs(GetActivePlayers()) do
@@ -3887,14 +3881,14 @@ local function ListaGente()
     table.sort(jugadores, function(a, b) return a[3] < b[3] end)
     for _, j in ipairs(jugadores) do
         local sid, ped, d = GetPlayerServerId(j[1]), j[2], j[3]
-        local nombre = (GetPlayerName(j[1]) or "Player") .. " [" .. sid .. "]"
+        local nombre = (GetPlayerName(j[1]) or "Jugador") .. " [" .. sid .. "]"
         local elegido = Animac.obj and Animac.obj.jugador == sid
         items[#items + 1] = { tipo = "accion", label = nombre, npc = ped,
-            derecha = (elegido and "chosen · " or "player · ") .. string.format("%.0f m", d),
-            desc = "Player: your character plays the animation facing them. For paired ones, it walks up.",
+            derecha = (elegido and "elegido · " or "jugador · ") .. string.format("%.0f m", d),
+            desc = "Jugador: las animaciones las hace tu personaje mirándole. Las de pareja, se acerca.",
             fn = function()
                 Animac.obj = { jugador = sid, ped = ped, nombre = nombre }
-                Animac.genteSucia = true; Avisar("Target: " .. nombre)
+                Animac.genteSucia = true; Avisar("Objetivo: " .. nombre)
             end }
     end
     local npcs = {}
@@ -3909,38 +3903,38 @@ local function ListaGente()
     table.sort(npcs, function(a, b) return a[2] < b[2] end)
     for i = 1, math.min(#npcs, 50) do
         local n, d = npcs[i][1], npcs[i][2]
-        local tipo = (GetPedType(n) == 28) and "Animal" or (IsPedMale(n) and "Man" or "Woman")
-        if IsPedInAnyVehicle(n, false) then tipo = tipo .. " in vehicle" end
+        local tipo = (GetPedType(n) == 28) and "Animal" or (IsPedMale(n) and "Hombre" or "Mujer")
+        if IsPedInAnyVehicle(n, false) then tipo = tipo .. " en vehículo" end
         local nombre = tipo .. " " .. i
         local elegido = Animac.obj and Animac.obj.ped == n
         items[#items + 1] = { tipo = "accion", label = nombre, npc = n,
-            derecha = (elegido and "chosen · " or "") .. string.format("%.0f m", d),
-            desc = "NPC: it plays the animations. If shared, others see it too.",
+            derecha = (elegido and "elegido · " or "") .. string.format("%.0f m", d),
+            desc = "NPC: hace él las animaciones. Si es compartido, los demás también lo ven.",
             fn = function()
                 if DoesEntityExist(n) then
                     Animac.obj = { ped = n, nombre = nombre }
-                    Animac.genteSucia = true; Avisar("Target: " .. nombre)
-                else Avisar("That NPC is gone") end
+                    Animac.genteSucia = true; Avisar("Objetivo: " .. nombre)
+                else Avisar("Ese NPC ya no está") end
             end }
     end
-    panelAnimOpc.titulo = "People around (" .. #jugadores .. " players · " .. math.min(#npcs, 50) .. " NPCs)"
+    panelAnimOpc.titulo = "Gente alrededor (" .. #jugadores .. " jugadores · " .. math.min(#npcs, 50) .. " NPCs)"
     return items
 end
 
 local function ListaDerecha()
     local items = {
-        { tipo = "accion", label = "Stop animation", derecha = K("pararAnim"),
-          desc = function() return "Stops whatever " .. NombreObjetivo() .. " and your character are doing." end,
-          fn = function() Parar(); Avisar("Animation stopped") end },
-        { tipo = "accion", label = "Stop all", derecha = "",
-          desc = "Stops your animation and that of every NPC you animated.", fn = PararTodo },
-        { tipo = "toggle", label = "Loop", key = "animBucle",
-          desc = "The animation repeats until you stop it." },
-        { tipo = "toggle", label = "Upper body only", key = "animSoloArriba",
-          desc = "For you: you can keep walking while doing the animation." },
+        { tipo = "accion", label = "Parar animación", derecha = K("pararAnim"),
+          desc = function() return "Para lo que esté haciendo " .. NombreObjetivo() .. " y a tu personaje." end,
+          fn = function() Parar(); Avisar("Animación parada") end },
+        { tipo = "accion", label = "Parar todas", derecha = "",
+          desc = "Para tu animación y la de todos los NPCs que has animado.", fn = PararTodo },
+        { tipo = "toggle", label = "Repetir en bucle", key = "animBucle",
+          desc = "La animación se repite sin parar hasta que la pares." },
+        { tipo = "toggle", label = "Solo de cintura para arriba", key = "animSoloArriba",
+          desc = "Para ti: puedes seguir andando mientras haces la animación." },
     }
     for _, it in ipairs(ListaGente()) do items[#items + 1] = it end
-    panelAnimOpc.titulo = "Target: " .. NombreObjetivo()
+    panelAnimOpc.titulo = "A quién: " .. NombreObjetivo()
     return items
 end
 
@@ -3985,8 +3979,8 @@ end
 -- ═════════════════════════════════════════════════════════
 local Extras = { agua = {}, patada = {}, camion = {}, marcados = {}, candidato = nil, pendientes = {},
                  hayMarcas = false }
-local panelAgua = { titulo = "Who you spray", items = {} }
-local panelSuper = { titulo = "Who you throw cars at", items = {} }
+local panelAgua = { titulo = "A quién echas agua", items = {} }
+local panelSuper = { titulo = "A quién tiras los coches", items = {} }
 do
 local VEH_MELEE_HOLD, VEH_MELEE_IZQ, VEH_MELEE_DER = 345, 346, 347   -- X, clic izquierdo, clic derecho
 local FLAG_SIN_MELEE = 122          -- CPED_CONFIG_FLAG_DisableMelee
@@ -4030,9 +4024,9 @@ local APantalla = Proyectar
 local function NombrePed(p)
     if IsPedAPlayer(p) then
         local pid = NetworkGetPlayerIndexFromPed(p)
-        return (GetPlayerName(pid) or "Player") .. " [" .. GetPlayerServerId(pid) .. "]", GetPlayerServerId(pid)
+        return (GetPlayerName(pid) or "Jugador") .. " [" .. GetPlayerServerId(pid) .. "]", GetPlayerServerId(pid)
     end
-    local tipo = (GetPedType(p) == 28) and "Animal" or (IsPedMale(p) and "Man" or "Woman")
+    local tipo = (GetPedType(p) == 28) and "Animal" or (IsPedMale(p) and "Hombre" or "Mujer")
     return tipo, nil
 end
 
@@ -4061,19 +4055,19 @@ local function Alternar(p)
     local M = Extras.marcados
     local i = IndiceMarcado(p)
     if i then
-        Avisar("Unmarked: " .. M[i].nombre)
+        Avisar("Desmarcado: " .. M[i].nombre)
         table.remove(M, i)
     else
         local nombre, sid = NombrePed(p)
         M[#M + 1] = { ped = p, jugador = sid, nombre = nombre }
-        Avisar("Marked: " .. nombre .. "  (" .. #M .. " total)")
+        Avisar("Marcado: " .. nombre .. "  (" .. #M .. " en total)")
     end
     Extras.listaSucia = true
 end
 Extras.Alternar = Alternar
 
 function Extras.DesmarcarTodos()
-    if #Extras.marcados > 0 then Avisar("Nobody marked: water goes where you aim") end
+    if #Extras.marcados > 0 then Avisar("Nadie marcado: el agua va donde apuntes") end
     Extras.marcados = {}
     Extras.listaSucia = true
 end
@@ -4088,7 +4082,7 @@ local function Marcados()
         local p = PedDe(M[i])
         if p then vivos[#vivos + 1] = p; i = i + 1
         else
-            Avisar(M[i].nombre .. " is gone")
+            Avisar(M[i].nombre .. " ya no está")
             table.remove(M, i); Extras.listaSucia = true
         end
     end
@@ -4111,7 +4105,7 @@ local function Marca(p, marcado)
     local c = GetEntityCoords(p)
     if marcado then
         local A = Colores.T(Config.colorMarca) or Colores.BLANCO
-        R.Flecha(c.x, c.y, c.z + 1.4, A[1], A[2], A[3], p, A[4])   -- flecha + recuadro de todo el cuerpo
+        R.Flecha(c.x, c.y, c.z + 1.4, A[1], A[2], A[3], vector3(c.x, c.y, c.z - 0.97), A[4])   -- flecha + aro en el suelo
     else
         local A = Colores.T(Config.colorApuntado) or Colores.BLANCO
         R.Flecha(c.x, c.y, c.z + 1.4, A[1], A[2], A[3], nil, A[4])
@@ -4129,7 +4123,7 @@ function Extras.DibujarMarcas()
         if en then
             R.Rect(sx - 8, sy - 8, 16, 16, 0, 0, 0, 0.55, 8)
             R.Rect(sx - 6, sy - 6, 12, 12, A[1], A[2], A[3], 1, 6)
-            R.TextC(sx, sy - 30, K("agarrar") .. " Grab", 13, 1, 1, 1, 0.95)
+            R.TextC(sx, sy - 30, K("agarrar") .. " Coger", 13, 1, 1, 1, 0.95)
         end
     end
     -- Personas: solo la flecha del mundo (Marca); sin punto ni nombre en el overlay
@@ -4137,7 +4131,7 @@ end
 
 -- ── Manguera ──────────────────────────────────────────────
 -- Config.tipoAgua: 1 = los dos, 2 = solo cañón real, 3 = solo boca de incendios
-local TIPOS_AGUA = { "Both", "Real cannon", "Hydrant" }
+local TIPOS_AGUA = { "Los dos", "Cañón real", "Boca de incendios" }
 Extras.TIPOS_AGUA = TIPOS_AGUA
 local MODELO_CAMION = GetHashKey("firetruk")
 local MODELO_BOMBERO = GetHashKey("s_m_y_fireman_01")
@@ -4234,11 +4228,11 @@ local function CrearCamion(ped)
     Citizen.CreateThread(function()
         local ok, err = pcall(function()
             if not CargarModelo(MODELO_CAMION) or not CargarModelo(MODELO_BOMBERO) then
-                C.fallo = "couldn't load the fire truck"; return
+                C.fallo = "no se pudo cargar el camión de bomberos"; return
             end
             local p = GetOffsetFromEntityInWorldCoords(ped, 0.0, -2.0, 0.0)
             local veh = CreateVehicle(MODELO_CAMION, p.x, p.y, p.z, GetEntityHeading(ped), true, false)
-            if not veh or veh == 0 then C.fallo = "the server won't let the truck spawn"; return end
+            if not veh or veh == 0 then C.fallo = "el servidor no deja crear el camión"; return end
             C.veh = veh
             SetEntityAsMissionEntity(veh, true, true)
             SetEntityVisible(veh, false, false)
@@ -4248,7 +4242,7 @@ local function CrearCamion(ped)
             SetVehicleRadioEnabled(veh, false)
             SetVehicleSiren(veh, false)
             local drv = CreatePedInsideVehicle(veh, 4, MODELO_BOMBERO, -1, true, false)
-            if not drv or drv == 0 then C.fallo = "the server won't let the driver spawn"; return end
+            if not drv or drv == 0 then C.fallo = "el servidor no deja crear el conductor"; return end
             C.drv = drv
             SetEntityAsMissionEntity(drv, true, true)
             SetEntityVisible(drv, false, false)
@@ -4271,7 +4265,7 @@ local function CrearCamion(ped)
         if not ok then C.fallo = tostring(err); print("[cargar coches] camión de agua: " .. tostring(err)) end
         C.creando = false
         if not C.listo then
-            if C.fallo then Avisar("Real cannon: " .. C.fallo .. ". Using the hydrant instead.") end
+            if C.fallo then Avisar("Cañón real: " .. C.fallo .. ". Se usa la boca de incendios.") end
             Extras.QuitarCamion()
             C.fallido = GetGameTimer() + 10000     -- no reintentar en 10 s
         elseif not Extras.agua.echando then
@@ -4395,7 +4389,7 @@ local function FrameAgua(ped, ahora)
                 StopFireInRange(obj.x, obj.y, obj.z, 3.0)
             elseif ahora >= (A.avisoLejos or 0) then
                 A.avisoLejos = ahora + 2500
-                Avisar("Too far for water (" .. math.floor(dist) .. " m). Mark it to reach.")
+                Avisar("Demasiado lejos para el agua (" .. math.floor(dist) .. " m). Márcalo para llegar.")
             end
         end
     end
@@ -4428,7 +4422,7 @@ function Extras.Frame(ped, pFijar, aguaAbajo)
     if cand and not IndiceMarcado(cand) then Marca(cand, false) end
     Extras.hayMarcas = (cand ~= nil) or #marcados > 0 or Extras.cocheMira ~= nil
     if pFijar then
-        if cand then Alternar(cand) else Avisar("Aim at someone (white arrow) to mark them") end
+        if cand then Alternar(cand) else Avisar("Apunta a alguien (flecha blanca) para marcarlo") end
     end
 
     if Config.manguera and aguaAbajo and not IsPedDeadOrDying(ped, true) then
@@ -4451,8 +4445,8 @@ local function ListaAgua()
     local pos = GetEntityCoords(me)
     local n = #Extras.marcados
     local items = {
-        { tipo = "accion", label = "Unmark everyone", derecha = (n == 0) and "nobody marked" or (n .. " marked"),
-          desc = "With nobody marked, water goes where you aim the camera.", fn = function() Extras.DesmarcarTodos() end },
+        { tipo = "accion", label = "Desmarcar a todos", derecha = (n == 0) and "nadie marcado" or (n .. " marcados"),
+          desc = "Sin nadie marcado, el agua va a donde apuntes con la cámara.", fn = function() Extras.DesmarcarTodos() end },
     }
     local jugadores = {}
     for _, pid in ipairs(GetActivePlayers()) do
@@ -4467,8 +4461,8 @@ local function ListaAgua()
         local nombre = NombrePed(p)
         local marcado = IndiceMarcado(p) ~= nil
         items[#items + 1] = { tipo = "accion", label = nombre, npc = p,
-            derecha = (marcado and "marked · " or "player · ") .. string.format("%.0f m", d),
-            desc = "Mark / unmark. Water follows marked people even as they move.", fn = function() Alternar(p) end }
+            derecha = (marcado and "marcado · " or "jugador · ") .. string.format("%.0f m", d),
+            desc = "Marca / desmarca. A los marcados el agua les sigue aunque se muevan.", fn = function() Alternar(p) end }
     end
     local npcs = {}
     for _, p in ipairs(GetGamePool("CPed")) do
@@ -4482,10 +4476,10 @@ local function ListaAgua()
         local p, d = npcs[i][1], npcs[i][2]
         local marcado = IndiceMarcado(p) ~= nil
         items[#items + 1] = { tipo = "accion", label = NombrePed(p) .. " " .. i, npc = p,
-            derecha = (marcado and "marked · " or "") .. string.format("%.0f m", d),
-            desc = "Mark / unmark. Water follows marked people even as they move.", fn = function() Alternar(p) end }
+            derecha = (marcado and "marcado · " or "") .. string.format("%.0f m", d),
+            desc = "Marca / desmarca. A los marcados el agua les sigue aunque se muevan.", fn = function() Alternar(p) end }
     end
-    panelAgua.titulo = "Who you spray (" .. (#items - 1) .. ")"
+    panelAgua.titulo = "A quién echas agua (" .. (#items - 1) .. ")"
     return items
 end
 
@@ -4715,14 +4709,14 @@ local function MontarTodos(me)
         if Super.activo then PonerAnimCargar(me) end
         if not ok then
             print("[cargar_coches] MontarTodos: " .. tostring(err))
-            Avisar("Superman: failed to get in (see the F8 console)")
+            Avisar("Superman: fallo al montarse (mira la consola F8)")
             return
         end
         local conControl = 0
         for i = 1, #L do
             if DoesEntityExist(L[i]) and NetworkHasControlOfEntity(L[i]) then conControl = conControl + 1 end
         end
-        Avisar(("Superman: control of %d of %d cars · got in %d · %d with NPC · %d ms")
+        Avisar(("Superman: control en %d de %d coches · montado en %d · %d con NPC · %d ms")
             :format(conControl, #L, montados, ocupados, GetGameTimer() - t0))
     end)
 end
@@ -4806,9 +4800,9 @@ end
 
 -- "a donde apuntas" / "al objetivo marcado" / "al objetivo de la flecha" / "a 3 objetivos marcados"
 local function Destino(n, flecha)
-    if n == 0 then return "where you aim" end
-    if n > 1 then return "to " .. n .. " marked targets" end
-    return flecha and "at the arrow target" or "at the marked target"
+    if n == 0 then return "a donde apuntas" end
+    if n > 1 then return "a " .. n .. " objetivos marcados" end
+    return flecha and "al objetivo de la flecha" or "al objetivo marcado"
 end
 
 -- Punto del mundo en el centro de la imagen que ves (cámara normal o freecam de Susano)
@@ -4929,7 +4923,7 @@ local function Lanzar(me, ahora)
         local e = Super.coches[i]
         if e.fase ~= "control" and not e.lanzarEn then listos[#listos + 1] = e end
     end
-    if #listos == 0 then Avisar("You have no cars up yet"); return end
+    if #listos == 0 then Avisar("Todavía no tienes ningún coche arriba"); return end
     local objetivos, jugadores, flecha = ObjetivosNpc()
     -- jugadores y NPCs valen como objetivo
     local punto = (#objetivos == 0) and PuntoApuntado(me) or nil
@@ -4955,7 +4949,7 @@ local function Lanzar(me, ahora)
     if CargarAnim(ANIM_LANZAR.dict) then
         TaskPlayAnim(me, ANIM_LANZAR.dict, ANIM_LANZAR.name, 8.0, -8.0, 900, 48, 0, false, false, false)
     end
-    Avisar((n == 1 and "Car thrown " or ("¡" .. n .. " cars thrown ")) .. Destino(#objetivos, flecha) .. "!")
+    Avisar((n == 1 and "¡Coche lanzado " or ("¡" .. n .. " coches lanzados ")) .. Destino(#objetivos, flecha) .. "!")
 end
 
 -- ── Bajar los coches al suelo ─────────────────────────────
@@ -5035,15 +5029,15 @@ end
 Super.SoltarTodos = SoltarTodos   -- para poder soltarlo al descargar el script
 
 local function Empezar(me, ahora)
-    if vehiculo then Avisar("Drop the car in your hands first"); return end
-    if IsPedInAnyVehicle(me, false) then Avisar("Get out of the vehicle to use Superman"); return end
+    if vehiculo then Avisar("Suelta primero el coche que llevas en las manos"); return end
+    if IsPedInAnyVehicle(me, false) then Avisar("Bájate del vehículo para usar Superman"); return end
     if IsPedDeadOrDying(me, true) then return end
     Super.activo, Super.parar, Super.coches = true, false, {}
     Super.proxAdd, Super.proxLista, Super.avisoVacio, Super.proxTexto, Super.acum = ahora, 0, false, 0, 1.0
     SetCurrentPedWeapon(me, H_DESARMADO, true)
     ClearPedTasks(me)
     PonerAnimCargar(me)
-    Avisar("Superman: pulling in cars  ·  " .. K("superLanzar") .. " throw  ·  " .. K("superMontar") .. " force control  ·  " .. K("superOrbitar") .. " orbit  ·  " .. K("superRecoger") .. " lower them")
+    Avisar("Superman: recogiendo coches  ·  " .. K("superLanzar") .. " lanzar  ·  " .. K("superMontar") .. " forzar control  ·  " .. K("superOrbitar") .. " orbitar  ·  " .. K("superRecoger") .. " bajarlos")
 end
 
 -- Brazos arriba: recoger coches nuevos, subirlos y mantenerlos girando
@@ -5073,7 +5067,7 @@ local function FrameArriba(me, ahora, t, dt)
                 Super.proxAdd, Super.acum = ahora + 300, 1.0
                 if #Super.coches == 0 and not Super.avisoVacio then
                     Super.avisoVacio = true
-                    Avisar("No free cars (empty or NPC) within " .. floor(Config.supermanRadio) .. " m")
+                    Avisar("No hay coches libres (vacíos o de NPC) a menos de " .. floor(Config.supermanRadio) .. " m")
                 end
                 break
             end
@@ -5154,15 +5148,15 @@ local function FrameArriba(me, ahora, t, dt)
     if ahora >= (Super.proxTexto or 0) then
         Super.proxTexto = ahora + 250
         if Super.parar then
-            Super.linea = "SUPERMAN   ·   throwing!"
+            Super.linea = "SUPERMAN   ·   ¡lanzando!"
         else
             local obj, _, flecha = ObjetivosNpc()
-            local orb = Super.orbitObj and "  ★ orbiting target" or ""
-            Super.linea = "SUPERMAN   " .. arriba .. "/" .. max .. " cars" .. orb
-                .. "   ·   " .. K("superLanzar") .. " throw "
-                .. Destino(#obj, flecha) .. "   ·   " .. K("superOrbitar") .. " orbit"
-                .. "   ·   " .. K("superMontar") .. " get in"
-                .. "   ·   " .. K("superRecoger") .. " lower them"
+            local orb = Super.orbitObj and "  ★ orbitando objetivo" or ""
+            Super.linea = "SUPERMAN   " .. arriba .. "/" .. max .. " coches" .. orb
+                .. "   ·   " .. K("superLanzar") .. " lanzar "
+                .. Destino(#obj, flecha) .. "   ·   " .. K("superOrbitar") .. " orbitar"
+                .. "   ·   " .. K("superMontar") .. " montar"
+                .. "   ·   " .. K("superRecoger") .. " bajarlos"
         end
     end
 
@@ -5225,7 +5219,7 @@ function Super.Frame(me, pRecoger, pLanzar, pOrbitar, pMontar)
         -- mientras dura el montaje no se baja, lanza ni cambia la órbita (dura milisegundos)
         pRecoger, pLanzar, pOrbitar = false, false, false
     end
-    if pRecoger then SoltarTodos(me, ahora, false); Avisar("Cars lowered"); return end
+    if pRecoger then SoltarTodos(me, ahora, false); Avisar("Coches bajados"); return end
     if pLanzar then Lanzar(me, ahora) end
     -- Montar: forzar control montándose (M); solo si Superman está activo y no lanzando
     if pMontar and not Super.parar and not Super.montando then MontarTodos(me) end
@@ -5234,7 +5228,7 @@ function Super.Frame(me, pRecoger, pLanzar, pOrbitar, pMontar)
         if Super.orbitObj then
             -- Volver a orbitar al jugador
             CambiarCentro(nil, me, ahora)
-            Avisar("Cars orbiting you")
+            Avisar("Coches orbitando a ti")
         else
             -- Buscar al ped apuntado
             local objetivos = ObjetivosNpc()
@@ -5244,16 +5238,16 @@ function Super.Frame(me, pRecoger, pLanzar, pOrbitar, pMontar)
             end
             if obj and DoesEntityExist(obj) then
                 CambiarCentro(obj, me, ahora)
-                Avisar("Cars orbiting the target")
+                Avisar("Coches orbitando al objetivo")
             else
-                Avisar("Aim at someone first")
+                Avisar("Apunta a alguien primero")
             end
         end
     end
     -- Si el objetivo de órbita ha muerto o no existe, volver al jugador
     if Super.orbitObj and (not DoesEntityExist(Super.orbitObj) or IsPedDeadOrDying(Super.orbitObj, true)) then
         CambiarCentro(nil, me, ahora)
-        Avisar("Target lost: cars return to you")
+        Avisar("Objetivo perdido: coches vuelven a ti")
     end
     FrameArriba(me, ahora, ahora / 1000.0, dt)
 end
@@ -5265,13 +5259,13 @@ local function ListaSuper()
     local nNpc, nJug = 0, 0
     for _, m in ipairs(Extras.marcados) do if m.jugador then nJug = nJug + 1 else nNpc = nNpc + 1 end end
     local items = {
-        { tipo = "accion", label = "Unmark everyone",
-          derecha = (nNpc + nJug == 0) and "nobody marked" or ((nNpc + nJug) .. (nNpc + nJug == 1 and " marked" or " marked")),
-          desc = "With nobody marked, cars go to the NPC with the white arrow or where you aim.",
+        { tipo = "accion", label = "Desmarcar a todos",
+          derecha = (nNpc + nJug == 0) and "nadie marcado" or ((nNpc + nJug) .. (nNpc + nJug == 1 and " marcado" or " marcados")),
+          desc = "Sin nadie marcado, los coches van al NPC de la flechita blanca o a donde apuntes.",
           fn = function() Extras.DesmarcarTodos(); Super.listaSucia = true end },
     }
     if nJug > 0 then
-        items[#items + 1] = { tipo = "texto", label = nJug .. (nJug == 1 and " player marked (they get hit too)" or " players marked (they get hit too)") }
+        items[#items + 1] = { tipo = "texto", label = nJug .. (nJug == 1 and " jugador marcado (también le caen)" or " jugadores marcados (también les caen)") }
     end
     local npcs = {}
     for _, p in ipairs(GetGamePool("CPed")) do
@@ -5285,11 +5279,11 @@ local function ListaSuper()
         local p, d = npcs[i][1], npcs[i][2]
         local marcado = IndiceMarcado(p) ~= nil
         items[#items + 1] = { tipo = "accion", label = NombrePed(p) .. " " .. i, npc = p,
-            derecha = (marcado and "marked · " or "") .. string.format("%.0f m", d),
-            desc = "Mark / unmark. Cars drop on their head even as they move.",
+            derecha = (marcado and "marcado · " or "") .. string.format("%.0f m", d),
+            desc = "Marca / desmarca. Los coches le caen en la cabeza aunque se mueva.",
             fn = function() Alternar(p); Super.listaSucia = true end }
     end
-    panelSuper.titulo = "Who you throw cars at (" .. math.min(#npcs, 40) .. ")"
+    panelSuper.titulo = "A quién tiras los coches (" .. math.min(#npcs, 40) .. ")"
     return items
 end
 
@@ -5309,222 +5303,222 @@ end
 
 local Secciones = {
     -- ── Personal ──────────────────────────────────────────
-    { nombre = "Character", icono = "ropa", paneles = { panelCatRopa, panelRopa },
+    { nombre = "Personaje", icono = "ropa", paneles = { panelCatRopa, panelRopa },
       sub = function() return CATEGORIAS_ROPA[Ropa.cat][1] end },
-    { nombre = "Animations", icono = "baile", paneles = { panelAnimCat, panelAnimOpc },
+    { nombre = "Animaciones", icono = "baile", paneles = { panelAnimCat, panelAnimOpc },
       sub = function()
           local o = Animac.obj
           local b = Animac.busqueda or ""
-          local n = o and o.nombre or "you"
+          local n = o and o.nombre or "tú"
           if b ~= Animac.subB or n ~= Animac.subN then
               Animac.subB, Animac.subN = b, n
-              Animac.sub = (b ~= "" and ("Search: " .. b) or "All") .. "  ·  to: " .. n
+              Animac.sub = (b ~= "" and ("Buscar: " .. b) or "Todas") .. "  ·  a: " .. n
           end
           return Animac.sub
       end },
-    { nombre = "Powers", sub = "For you", icono = "poderes", paneles = {
-        { titulo = "You", items = {
-            Toggle("Immortal", "inmortal",
-                "Nothing hurts you: bullets, hits, fire, explosions, falls or drowning. If anything lowers your health, it tops up instantly."),
-            Toggle("Super jump", "supersalto", "You jump way higher."),
-            { tipo = "toggle", label = "Fly", key = "volar", bindId = "volar", desc = function()
-                return "Fly like Superman, always in the same pose. W A S D to move, Space up, Ctrl down and Shift goes faster. "
-                    .. NombreTecla(TeclaDe("volar")) .. " takes off or lands." end },
-            Lista("Flying pose", "posturaVuelo", Diver.POSTURAS_N, "The animation that stays on the whole time you fly."),
-            Slider("Flight speed", "velocidadVuelo", 5, 80, 1, "%.0f m/s", "How fast you fly. With Shift, triple."),
-            Toggle("Fast run", "correrRapido", "You run quite a bit faster than normal."),
-            Toggle("Fast swim", "nadarRapido", "You swim faster."),
-            Toggle("Infinite stamina", "estaminaInf", "You never tire from running or swimming."),
-            Toggle("No police", "sinPolicia", "Wanted stars clear themselves as soon as they appear."),
-            { tipo = "toggle", label = "Ragdoll key", key = "caerseTecla", bindId = "caerse", desc = function()
-                return "Press " .. NombreTecla(TeclaDe("caerse")) .. " and you flop to the floor like a ragdoll." end },
+    { nombre = "Poderes", sub = "Para ti", icono = "poderes", paneles = {
+        { titulo = "Tú", items = {
+            Toggle("Inmortal", "inmortal",
+                "No te hace daño nada: balas, golpes, fuego, explosiones, caídas ni ahogarte. Si algo te baja la vida, vuelve a tope al momento."),
+            Toggle("Supersalto", "supersalto", "Saltas muchísimo más alto."),
+            { tipo = "toggle", label = "Volar", key = "volar", bindId = "volar", desc = function()
+                return "Vuela como Superman, siempre con la misma postura. W A S D para moverte, Espacio sube, Ctrl baja y Shift va más rápido. "
+                    .. NombreTecla(TeclaDe("volar")) .. " despega o aterriza." end },
+            Lista("Postura al volar", "posturaVuelo", Diver.POSTURAS_N, "La animación que se queda puesta todo el rato mientras vuelas."),
+            Slider("Velocidad de vuelo", "velocidadVuelo", 5, 80, 1, "%.0f m/s", "Lo rápido que vuelas. Con Shift, el triple."),
+            Toggle("Correr rápido", "correrRapido", "Corres bastante más rápido de lo normal."),
+            Toggle("Nadar rápido", "nadarRapido", "Nadas más rápido."),
+            Toggle("Aguante infinito", "estaminaInf", "No te cansas nunca de correr ni de nadar."),
+            Toggle("Sin policía", "sinPolicia", "Las estrellas se borran solas en cuanto salen."),
+            { tipo = "toggle", label = "Caerse con tecla", key = "caerseTecla", bindId = "caerse", desc = function()
+                return "Pulsa " .. NombreTecla(TeclaDe("caerse")) .. " y te caes al suelo como un muñeco." end },
         } },
-        { titulo = "Actions", items = {
-            Accion("Heal me", function() Diver.Curar() end, "Full health and armor.", "curar"),
-            Accion("Go to map marker", function() Diver.IrMarcador() end, "Takes you to the point you marked on the map.", "marcador"),
-            Accion("Skydive", function() Diver.Paracaidas() end, "Lifts you high up with a parachute on.", "paracaidas"),
+        { titulo = "Acciones", items = {
+            Accion("Curarme", function() Diver.Curar() end, "Vida y chaleco al máximo.", "curar"),
+            Accion("Ir al marcador del mapa", function() Diver.IrMarcador() end, "Te lleva al punto que hayas marcado en el mapa.", "marcador"),
+            Accion("Saltar en paracaídas", function() Diver.Paracaidas() end, "Te sube muy alto con un paracaídas puesto.", "paracaidas"),
         } },
     } },
     -- ── Vehículos ─────────────────────────────────────────
-    { nombre = "Tuning", icono = "tuneo", paneles = { panelCategorias, panelOpciones },
+    { nombre = "Tuneo", icono = "tuneo", paneles = { panelCategorias, panelOpciones },
       sub = function()
           -- El nombre del vehículo se lee del juego solo cuando cambia el vehículo o la categoría
           if Tuneo.subVeh ~= Tuneo.veh or Tuneo.subCat ~= Tuneo.cat or not Tuneo.sub then
               Tuneo.subVeh, Tuneo.subCat = Tuneo.veh, Tuneo.cat
-              local nombre = Tuneo.veh and NombreVehiculo(Tuneo.veh) or "no vehicle"
+              local nombre = Tuneo.veh and NombreVehiculo(Tuneo.veh) or "sin vehículo"
               Tuneo.sub = CATEGORIAS[Tuneo.cat][1] .. "  ·  " .. nombre
           end
           return Tuneo.sub
       end },
-    { nombre = "Driving", sub = "The car you're in", icono = "conduccion", paneles = {
-        { titulo = "Behind the wheel", items = {
-            Toggle("Indestructible", "cocheInmune", "The car you drive won't break or get a flat."),
+    { nombre = "Conducción", sub = "El coche que llevas", icono = "conduccion", paneles = {
+        { titulo = "Al volante", items = {
+            Toggle("Indestructible", "cocheInmune", "El coche que conduces no se rompe ni pincha."),
             { tipo = "toggle", label = "Nitro", key = "nitro", bindId = "nitro", desc = function()
-                return "Hold " .. NombreTecla(TeclaDe("nitro")) .. " while driving and it shoots forward." end },
-            { tipo = "toggle", label = "Car jump", key = "saltoCoche", bindId = "saltoCoche", desc = function()
-                return "Press " .. NombreTecla(TeclaDe("saltoCoche")) .. " and the car jumps." end },
-            Toggle("Drift mode", "derrapes", "The tires grip less: you drift in every corner."),
-            Toggle("Bike kicks always", "patadasMoto",
-                "Removes the game's kick lockouts: X + left / right click, as usual."),
-            Accion("Rocket", function() Diver.Cohete() end, "Launches the car upward.", "cohete"),
+                return "Mantén " .. NombreTecla(TeclaDe("nitro")) .. " conduciendo y sale disparado." end },
+            { tipo = "toggle", label = "Salto con el coche", key = "saltoCoche", bindId = "saltoCoche", desc = function()
+                return "Pulsa " .. NombreTecla(TeclaDe("saltoCoche")) .. " y el coche pega un salto." end },
+            Toggle("Modo derrape", "derrapes", "Las ruedas agarran menos: derrapas en cada curva."),
+            Toggle("Patadas en moto siempre", "patadasMoto",
+                "Quita los bloqueos de la patada del juego: X + clic izquierdo / derecho, como siempre."),
+            Accion("Cohete", function() Diver.Cohete() end, "Lanza el coche hacia arriba.", "cohete"),
         } },
     } },
-    { nombre = "Carry cars", sub = "With your hands", icono = "cargar", paneles = {
+    { nombre = "Cargar coches", sub = "Con las manos", icono = "cargar", paneles = {
         { titulo = "General", items = {
-            Toggle("Enabled", "activado", "Turns carrying cars on or off."),
-            Teclas.Fila("agarrar", "Grab / drop"),
-            Teclas.Fila("lanzar", "Throw"),
-            Toggle("Outline on aim", "contorno", "Draws a box around the vehicle you're about to grab (color in Customize)."),
-            Toggle("On-screen help", "ayudaHud", "Shows at the bottom which key to use at each moment."),
-            Accion("Drop now",
-                function() if vehiculo then Soltar(); Avisar("Vehicle dropped") else Avisar("You're not carrying any vehicle") end end,
-                "Puts the vehicle you're carrying on the ground in front of you.", "soltar"),
+            Toggle("Activado", "activado", "Enciende o apaga el cargar coches."),
+            Teclas.Fila("agarrar", "Coger / soltar"),
+            Teclas.Fila("lanzar", "Lanzar"),
+            Toggle("Contorno al apuntar", "contorno", "Dibuja una caja alrededor del vehículo que vas a coger (el color, en Personalizar)."),
+            Toggle("Ayuda en pantalla", "ayudaHud", "Muestra abajo qué tecla usar en cada momento."),
+            Accion("Soltar ahora",
+                function() if vehiculo then Soltar(); Avisar("Vehículo soltado") else Avisar("No llevas ningún vehículo") end end,
+                "Deja en el suelo, delante de ti, el vehículo que llevas.", "soltar"),
         } },
-        { titulo = "Settings", items = {
-            Slider("Range", "alcance", 4, 40, 1, "%.0f m", "Max distance to grab a vehicle by aiming at it."),
-            Slider("Grab nearby", "alcanceCercano", 0, 10, 0.5, "%.1f m",
-                "If you aim at nothing, grabs the closest one within this radius. 0 = off."),
-            Slider("Throw force", "fuerzaLanzar", 5, 100, 5, "%.0f", "Speed it leaves at when thrown."),
-            Slider("Height offset", "ajusteAltura", -0.6, 0.6, 0.05, "%+.2f m",
-                "Raises or lowers the vehicle over your hands. Applied instantly."),
+        { titulo = "Ajustes", items = {
+            Slider("Alcance", "alcance", 4, 40, 1, "%.0f m", "Distancia máxima para coger un vehículo apuntándolo."),
+            Slider("Coger cercano", "alcanceCercano", 0, 10, 0.5, "%.1f m",
+                "Si no apuntas a nada, coge el más cercano en este radio. 0 = desactivado."),
+            Slider("Fuerza de lanzamiento", "fuerzaLanzar", 5, 100, 5, "%.0f", "Velocidad con la que sale al lanzarlo."),
+            Slider("Ajuste de altura", "ajusteAltura", -0.6, 0.6, 0.05, "%+.2f m",
+                "Sube o baja el vehículo sobre tus manos. Se aplica al momento."),
         } },
     } },
     { nombre = "Superman", icono = "superman", sub = function()
-          if Super.activo then return Super.nArriba .. " cars up" end
-          if not Config.superman then return "Off" end
-          return "Ready  ·  " .. K("superRecoger") .. " to start"
+          if Super.activo then return Super.nArriba .. " coches arriba" end
+          if not Config.superman then return "Apagado" end
+          return "Listo  ·  " .. K("superRecoger") .. " para empezar"
       end, paneles = {
-        { titulo = "Superman mode", items = {
-            Toggle("Superman mode", "superman",
-                function() return "Press " .. K("superRecoger") .. ": the cars around you fly up to your head. Turning it off lowers them." end),
-            Teclas.Fila("superRecoger", "Pull in / lower cars"),
-            Teclas.Fila("superLanzar", "Throw"),
-            Teclas.Fila("fijarAgua", "Mark target"),
-            Teclas.Fila("superOrbitar", "Orbit the target"),
-            Teclas.Fila("superMontar", "Force control (get in)"),
-            Slider("Pull-in speed", "supermanVelocidad", 1, 30, 1, "%.0f cars/s",
-                "How many cars rise per second: 1 = one at a time, slow · 30 = almost all at once (and faster)."),
-            Slider("Cars at once", "supermanMax", 1, 36, 1, "%.0f",
-                "How many cars you levitate at once (up to 36, in 4 rings)."),
-            Slider("Search radius", "supermanRadio", 10, 1000, 10, "%.0f m",
-                "How far out cars are searched (only empty, NPC or yours). Only the ones the game has loaded around you exist: usually around 400 m, more with OneSync Infinity."),
-            Slider("Force", "supermanFuerza", 20, 120, 5, "%.0f m/s", "Speed the cars leave at when thrown."),
-            Lista("When throwing", "supermanModo", { "All at once", "One by one" },
-                "All: a rain of cars on the target. One by one: each press throws one and the ring refills."),
+        { titulo = "Modo Superman", items = {
+            Toggle("Modo Superman", "superman",
+                function() return "Pulsa " .. K("superRecoger") .. ": los coches de alrededor suben volando a tu cabeza. Apagarlo los baja." end),
+            Teclas.Fila("superRecoger", "Recoger / bajar coches"),
+            Teclas.Fila("superLanzar", "Lanzar"),
+            Teclas.Fila("fijarAgua", "Marcar objetivo"),
+            Teclas.Fila("superOrbitar", "Orbitar en el objetivo"),
+            Teclas.Fila("superMontar", "Forzar control (montarse)"),
+            Slider("Velocidad de recogida", "supermanVelocidad", 1, 30, 1, "%.0f coches/s",
+                "Cuántos coches suben por segundo: 1 = de uno en uno, despacio · 30 = casi todos de golpe (y suben más rápido)."),
+            Slider("Coches a la vez", "supermanMax", 1, 36, 1, "%.0f",
+                "Cuántos coches levitas a la vez (hasta 36, en 4 anillos)."),
+            Slider("Radio de búsqueda", "supermanRadio", 10, 1000, 10, "%.0f m",
+                "Hasta qué distancia se buscan coches (solo vacíos, de NPC o tuyos). Solo existen los que el juego tiene cargados a tu alrededor: normalmente unos 400 m, más con OneSync Infinity."),
+            Slider("Fuerza", "supermanFuerza", 20, 120, 5, "%.0f m/s", "Velocidad a la que salen los coches al lanzarlos."),
+            Lista("Al lanzar", "supermanModo", { "Todos a la vez", "De uno en uno" },
+                "Todos: lluvia de coches sobre el objetivo. De uno en uno: cada pulsación lanza uno y el anillo se vuelve a llenar."),
         } },
         panelSuper,
     } },
     -- ── Mundo ─────────────────────────────────────────────
-    { nombre = "NPC control", icono = "npcs", paneles = { panelPosesion, panelCercanos },
-      sub = function() return Pos.activo and "Controlling an NPC" or "None" end },
-    { nombre = "Hose", sub = function()
+    { nombre = "Control de NPCs", icono = "npcs", paneles = { panelPosesion, panelCercanos },
+      sub = function() return Pos.activo and "Controlando un NPC" or "Ninguno" end },
+    { nombre = "Manguera", sub = function()
           local n = #Extras.marcados
-          local a = (n == 0) and "where you aim" or (n == 1 and Extras.marcados[1].nombre or (n .. " marked"))
-          return "Water to: " .. a
+          local a = (n == 0) and "donde apuntes" or (n == 1 and Extras.marcados[1].nombre or (n .. " marcados"))
+          return "Agua a: " .. a
       end, icono = "manguera", paneles = {
-        { titulo = "Hose", items = {
-            Toggle("Hose without truck", "manguera",
-                "Real game water: everyone sees it and it knocks over players and NPCs. Hold the key to spray."),
-            Teclas.Fila("agua", "Spray water (hold)"),
-            Teclas.Fila("fijarAgua", "Mark / unmark", "Marks whoever is in the center of your screen (also with the freecam)."),
-            Lista("Water type", "tipoAgua", Extras.TIPOS_AGUA,
-                "Real cannon: invisible fire truck with the cannon over your head. Hydrant: pressurized water where it lands. Both: both."),
-            Slider("Water range", "alcanceAgua", 5, 60, 1, "%.0f m", "How far the water reaches."),
+        { titulo = "Manguera", items = {
+            Toggle("Manguera sin camión", "manguera",
+                "Agua de verdad del juego: la ven todos y tira a jugadores y NPCs. Mantén la tecla para echarla."),
+            Teclas.Fila("agua", "Echar agua (mantener)"),
+            Teclas.Fila("fijarAgua", "Marcar / desmarcar", "Marca a quien tengas en el centro de la pantalla (también con la freecam)."),
+            Lista("Tipo de agua", "tipoAgua", Extras.TIPOS_AGUA,
+                "Cañón real: camión de bomberos invisible con el cañón sobre tu cabeza. Boca de incendios: agua a presión donde cae. Los dos: ambos."),
+            Slider("Alcance del agua", "alcanceAgua", 5, 60, 1, "%.0f m", "Hasta dónde llega el agua."),
         } },
         panelAgua,
     } },
-    { nombre = "Effects", sub = "On your screen only", icono = "efectos", paneles = {
-        { titulo = "Effects", items = {
-            Toggle("Moon gravity", "gravedadLunar", "Things fall slowly, like on the moon."),
-            Toggle("Drunk mode", "borracho", "You stagger and the camera sways on its own."),
-            Accion("Lightning", function() Diver.Rayo() end, "A bolt of lightning strikes.", "rayo"),
-            Accion("Fireworks", function() Diver.Fuegos() end, "A few fireworks above you.", "fuegos"),
-            Accion("Confetti", function() Diver.Confeti() end, "A burst of confetti where you are.", "confeti"),
+    { nombre = "Efectos", sub = "Solo en tu pantalla", icono = "efectos", paneles = {
+        { titulo = "Efectos", items = {
+            Toggle("Gravedad lunar", "gravedadLunar", "Las cosas caen despacio, como en la luna."),
+            Toggle("Modo borracho", "borracho", "Andas haciendo eses y la cámara se mueve sola."),
+            Accion("Rayo", function() Diver.Rayo() end, "Cae un rayo en el cielo.", "rayo"),
+            Accion("Fuegos artificiales", function() Diver.Fuegos() end, "Unos cuantos fuegos encima de ti.", "fuegos"),
+            Accion("Confeti", function() Diver.Confeti() end, "Explosión de confeti donde estás.", "confeti"),
         } },
-        { titulo = "Weather and time", items = {
-            Lista("Weather", "clima", Diver.CLIMAS, "Changes the weather on your screen. If the server has its own, it reapplies every few seconds."),
-            Toggle("Lock time", "horaFija", "Keeps the time you pick below."),
-            Slider("Time", "hora", 0, 23, 1, "%02.0f:00", "Time of day with «Lock time» on."),
+        { titulo = "Clima y hora", items = {
+            Lista("Clima", "clima", Diver.CLIMAS, "Cambia el clima en tu pantalla. Si el servidor tiene el suyo, se vuelve a poner cada pocos segundos."),
+            Toggle("Hora fija", "horaFija", "Deja siempre la hora que elijas abajo."),
+            Slider("Hora", "hora", 0, 23, 1, "%02.0f:00", "La hora del día con «Hora fija» encendida."),
         } },
     } },
-    { nombre = "Camera", sub = "Freecam and view", icono = "camara", paneles = {
+    { nombre = "Cámara", sub = "Freecam y vista", icono = "camara", paneles = {
         { titulo = "Freecam", items = {
             { tipo = "toggle", label = "Freecam", bindId = "freecam",
               get = function() return Cam.activa end, set = function() Cam.Alternar() end,
-              desc = "Fly with the camera and mark targets or grab cars from afar. Your character stays still and safe." },
-            Slider("Speed", "freecamVel", 2, 150, 1, "%.0f m/s",
-                "How fast the free camera moves. Shift multiplies it by 4 and Alt divides it by 4."),
-            T("W A S D move  ·  Space / Ctrl up and down"),
-            T("Shift fast  ·  Alt slow"),
+              desc = "Vuela con la cámara y marca objetivos o coge coches desde lejos. Tu personaje se queda quieto y a salvo." },
+            Slider("Velocidad", "freecamVel", 2, 150, 1, "%.0f m/s",
+                "Lo que tarda en moverse la cámara libre. Shift la multiplica por 4 y Alt la divide por 4."),
+            T("W A S D mover  ·  Espacio / Ctrl subir y bajar"),
+            T("Shift rápido  ·  Alt despacio"),
         } },
-        { titulo = "View", items = {
-            Toggle("Night vision", "visionNocturna", "See at night like with night-vision goggles."),
-            Toggle("Slow motion", "camaraLenta", "Everything runs in slow motion on your screen."),
+        { titulo = "Vista", items = {
+            Toggle("Visión nocturna", "visionNocturna", "Ves de noche como con gafas de visión nocturna."),
+            Toggle("Cámara lenta", "camaraLenta", "Todo va a cámara lenta en tu pantalla."),
         } },
     } },
     -- ── Ajustes ───────────────────────────────────────────
-    { nombre = "Customize", sub = "Look and keys", icono = "personalizar", paneles = {
-        { titulo = "Look", items = {
-            Lista("Theme", "tema", { "Dark", "Light" }, "Dark or light mode. Also with the sun / moon up top."),
-            Colores.Opcion("Accent color", "colorAcento",
-                "The color of the menu's buttons, switches and marks. Left alone it's white in dark mode and black in light mode.",
+    { nombre = "Personalizar", sub = "Aspecto y teclas", icono = "personalizar", paneles = {
+        { titulo = "Aspecto", items = {
+            Lista("Tema", "tema", { "Oscuro", "Claro" }, "Modo oscuro o claro. También con el sol / la luna de arriba."),
+            Colores.Opcion("Color de acento", "colorAcento",
+                "El color de los botones, interruptores y marcas del menú. Sin tocarlo es blanco en modo oscuro y negro en modo claro.",
                 false, function() return Config.tema == 2 and { 0.06, 0.06, 0.07, 1 } or { 0.96, 0.96, 0.97, 1 } end),
-            Accion("Accent black and white", function() Config.colorAcento = ""; Guardado.pendiente = true; Avisar("Automatic accent") end,
-                "Removes the accent color and goes back to black and white."),
-            Slider("Background opacity", "opacidad", 0.6, 1, 0.05, function(v) return math.floor(v * 100 + 0.5) .. " %" end,
-                "Below 100% lets the game show through behind the menu (blurred)."),
-            Slider("Corner rounding", "redondeo", 0, 14, 1, "%.0f px", "0 = square corners. The higher, the rounder."),
-            Lista("Animations", "animaciones", { "Smooth", "Fast", "No animations" },
-                "Smooth: short transitions. Fast: almost instant. No animations: lightest."),
-            Toggle("Info column", "descripciones", "Shows on the right what the option you point at does."),
+            Accion("Acento en blanco y negro", function() Config.colorAcento = ""; Guardado.pendiente = true; Avisar("Acento automático") end,
+                "Quita el color de acento y vuelve al blanco y negro."),
+            Slider("Opacidad del fondo", "opacidad", 0.6, 1, 0.05, function(v) return math.floor(v * 100 + 0.5) .. " %" end,
+                "Menos de 100 % deja ver el juego por detrás del menú (desenfocado)."),
+            Slider("Redondeo de esquinas", "redondeo", 0, 14, 1, "%.0f px", "0 = esquinas rectas. Cuanto más, más redondeado."),
+            Lista("Animaciones", "animaciones", { "Suaves", "Rápidas", "Sin animaciones" },
+                "Suaves: transiciones cortas. Rápidas: casi al instante. Sin animaciones: lo más ligero."),
+            Toggle("Columna de info", "descripciones", "Muestra a la derecha qué hace la opción que señalas."),
         } },
-        { titulo = "Marks and keys", items = {
-            Colores.Opcion("Marked arrow", "colorMarca", "Arrow and full-body box for who you mark with the hose, Superman or in animations.", true),
-            Colores.Opcion("Aim arrow", "colorApuntado", "Arrow for who you're aiming at before marking them.", true),
-            Colores.Opcion("Car outline", "colorContorno", "Box around the car you're about to grab (with «Outline on aim»).", true),
-            Teclas.Fila("menu", "Open / close the menu"),
-            Accion("Reset look", function()
+        { titulo = "Marcas y teclas", items = {
+            Colores.Opcion("Flecha de marcados", "colorMarca", "Flecha y aro de quien marcas con la manguera, Superman o en animaciones.", true),
+            Colores.Opcion("Flecha al apuntar", "colorApuntado", "Flecha de a quién estás apuntando antes de marcarlo.", true),
+            Colores.Opcion("Contorno del coche", "colorContorno", "Caja alrededor del coche que vas a coger (con «Contorno al apuntar»).", true),
+            Teclas.Fila("menu", "Abrir / cerrar el menú"),
+            Accion("Restablecer aspecto", function()
                     for _, k in ipairs({ "tema", "colorAcento", "colorMarca", "colorApuntado", "colorContorno", "opacidad", "redondeo", "animaciones" }) do
                         Config[k] = Guardado.defecto[k]
                     end
-                    Guardado.pendiente = true; Avisar("Look reset")
-                end, "Theme, colors, opacity, corners and animations back to default."),
-            Accion("Reset keys", function()
+                    Guardado.pendiente = true; Avisar("Aspecto como venía")
+                end, "Tema, colores, opacidad, esquinas y animaciones como venían."),
+            Accion("Restablecer teclas", function()
                     for i, b in ipairs(binds) do b.tecla = bindsPorDefecto[i] end
                     Teclas.atajos = {}; Teclas.GuardarAtajos()
-                    Avisar("Keys reset")
-                end, "All keys back to default and clears the ones you set on individual options."),
+                    Avisar("Teclas como venían")
+                end, "Todas las teclas como venían y quita las que pusiste a opciones sueltas."),
         } },
     } },
-    { nombre = "Saving", sub = "Your settings", icono = "guardado", paneles = {
-        { titulo = "Settings", items = {
-            Accion("Save now", function() Guardado.Guardar(false) end,
-                "Settings save themselves when you change them; this saves right now."),
-            Accion("Export", function() Guardado.Exportar() end,
-                "Copies settings, keys, outfits and appearance to the clipboard. Paste it into a .txt to keep it."),
-            Accion("Import", function() Guardado.Importar() end,
-                "Copy the exported text (Ctrl+C) and click here to restore everything."),
-            Accion("Center window", function() Config.ventanaX, Config.ventanaY = 0, 0; Guardado.pendiente = true; Avisar("Window centered") end,
-                "Puts the window back in the center of the screen."),
-            Accion("Reset everything", function() Guardado.Restablecer() end,
-                "Puts every setting and key back to default."),
+    { nombre = "Guardado", sub = "Tus ajustes", icono = "guardado", paneles = {
+        { titulo = "Ajustes", items = {
+            Accion("Guardar ahora", function() Guardado.Guardar(false) end,
+                "Los ajustes se guardan solos al cambiarlos; esto los guarda ya mismo."),
+            Accion("Exportar", function() Guardado.Exportar() end,
+                "Copia ajustes, teclas, atuendos y apariencia al portapapeles. Pégalo en un .txt para guardarlo."),
+            Accion("Importar", function() Guardado.Importar() end,
+                "Copia el texto exportado (Ctrl+C) y pulsa aquí para recuperarlo todo."),
+            Accion("Centrar ventana", function() Config.ventanaX, Config.ventanaY = 0, 0; Guardado.pendiente = true; Avisar("Ventana centrada") end,
+                "Vuelve a colocar la ventana en el centro de la pantalla."),
+            Accion("Restablecer todo", function() Guardado.Restablecer() end,
+                "Vuelve a poner todos los ajustes y teclas como venían."),
         } },
     } },
-    { nombre = "Help", sub = "How to use", icono = "ayuda", paneles = {
-        { titulo = "Carry cars", items = {
-            T(function() return "1. Aim at a vehicle (max. " .. math.floor(Config.alcance) .. " m)" end),
-            T(function() return "2. " .. K("agarrar") .. " to grab it" end),
-            T("3. Carry it while you walk"),
-            T(function() return "4. " .. K("lanzar") .. " throws it where you look" end),
-            T(function() return "5. " .. K("agarrar") .. " again drops it" end),
+    { nombre = "Ayuda", sub = "Cómo se usa", icono = "ayuda", paneles = {
+        { titulo = "Cargar coches", items = {
+            T(function() return "1. Apunta a un vehículo (máx. " .. math.floor(Config.alcance) .. " m)" end),
+            T(function() return "2. " .. K("agarrar") .. " para cogerlo" end),
+            T("3. Llévalo encima mientras andas"),
+            T(function() return "4. " .. K("lanzar") .. " lo lanza donde miras" end),
+            T(function() return "5. " .. K("agarrar") .. " otra vez lo suelta" end),
         } },
-        { titulo = "In the menu", items = {
-            T("The key next to each option: click and press yours"),
-            T("Del or Backspace removes that key"),
-            T("Mouse: click and drag the sliders"),
-            T("Drag the top bar to move"),
-            T("Arrows: move and change values (Shift: in 10s)"),
-            T("Enter: select  ·  Esc: back  ·  Ctrl+F: search"),
+        { titulo = "En el menú", items = {
+            T("La tecla al lado de cada opción: clic y pulsa la tuya"),
+            T("Supr o Retroceso quitan esa tecla"),
+            T("Ratón: clic y arrastrar las barras"),
+            T("Arrastra la barra de arriba para mover"),
+            T("Flechas: moverse y cambiar valores (Shift: de 10 en 10)"),
+            T("Enter: elegir  ·  Esc: volver  ·  Ctrl+F: buscar"),
         } },
     } },
 }
@@ -5556,7 +5550,7 @@ function Teclas.ProcesarAtajos()
                 Config[id] = not Config[id]
                 Guardado.pendiente = true
                 if id == "activado" and not Config.activado and vehiculo then Soltar() end
-                Avisar((Teclas.nombres[id] or id) .. (Config[id] and ": on" or ": off"))
+                Avisar((Teclas.nombres[id] or id) .. (Config[id] and ": encendido" or ": apagado"))
             elseif it and it.fn then
                 it.fn()
             end
@@ -5815,7 +5809,7 @@ local function ProcesarMenu()
     if Menu.esperandoTecla then
         -- Esperando la tecla nueva de una opción: Esc o un clic cancelan
         local _, clic = Tecla(0x01)
-        if Pulsada(0x1B) or clic then Menu.esperandoTecla = false; Avisar("Cancelled"); return end
+        if Pulsada(0x1B) or clic then Menu.esperandoTecla = false; Avisar("Cancelado"); return end
         local vk = EscanearTecla()
         if vk then
             Teclas.Asignar(Menu.esperandoTecla, vk)
@@ -6089,39 +6083,6 @@ IBNvbtg/mPWhcgyI9BcbudMDdc/3GgQgE2/LbZ5C9CEgzNzpoyR32gTpDaCJt+Y2to0NqDQSISC8APLE
 PB7/Go1G+yhPJGs+R0PCJQibqV36yOuvPxcB6AOvSz0CXHUkYgSsEdjizRiBLU621VWMgHVatnjzxkfgPwAAAP//WzP+rgAAAAZJREFUAwDw9g9/xm8CyQAAAABJRU5E
 rkJggg==
 ]],
-    i_chev_abajo_b = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAB7UlEQVR4AeyVTU7DMBCFU84AF0AgFuwqxKYt7VlYcC9uUqkVmwqx4KdwBn5PQPleZEuBRsLu2EEVrmYy
-juV5895MmuxUW/4rAv56gGUCZQLGDpRHyNhAc3qZgLmFRoAyAWMDzellAuYWGgHKBIwNNKf/rwmsVqsD/Bpf4Ifm9jkAsI5wj7vvtoNC7AQuQe3jJ/gVRY+IJnMYc0A8
-rmpwG2axAj4bsLus544Ay3hzuSIvLA8QxSnqMBUu8A/cmwrPIHLsN0Kjy5lxXhiE2l65nuPBFiGgqnq93rKqqiH+jnvbYzGFUPDj5M5OyVMuobYXrgNqPBGDLUqAUClw
-TxzhTRHqYtDj5Mj/fGxEfgh2FHk4VNEClEShjUSkJi8uGwlQYqyIHOTFY2MBSg4VkYu8OJgECOA3ETnJq75ZgECciDHrtVcse22vyjE50X9YsNYsiQChQuiWqLfTG9Gb
-XpNyf//MYsTZB2ISSyZAbCB2R5zgTRHc1ibyE87oW1JvpLgkFSBCENQkzlg3vxN6zyftPPi1JRcgVEToOzFgfYMvcJFP8syD9c2yCFAFRCzxPn6KP2ovh2cTkINsG2YR
-0NaVLvfKBLrsdlutMoG2rnS5VybQZbfbauWZQFulTHtFQKbGBsOWCQS3KtPBrZ/AFwAAAP//tyyC/AAAAAZJREFUAwAtoZlhprZLRwAAAABJRU5ErkJggg==
-]],
-    i_chev_abajo_n = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACJElEQVR4AexVS04CQRCFgSW/BVzAaFy4I8YNIJzFhffiJiYYN8S48IOewc9MAjtAfI9Mk4lMoHu6ewyx
-CEXPFFWv3qua7gkKB/4RAX89QJmATMCyA/IIWTbQOl0mYN1CSwCZgGUDrdNlAtYttASQCVg20Dr9f02gVqsdNxqNe9gY1yfW7YsBqtXqKTDXuPV6/Sh2ay1GEyiVSsNi
-sdiGnQdBcMfCWlV2BBEDuLfAVLjDHeFbfxkJQPY3bP1FwSYLk8DakeGHucQgViLdiJNR8Hw+v16tVpEqxsIgMKpUKmfKp7syh7nEUDnA/lwsFlfqXmc1EFAozGazCQp0
-UShU4CDQKpfLN+ym8u1bGcsc5qpYYH4sl8vOdDp9Uz6dNdAJSsZAxDNE9FAwKUL7cSJ5dJ7PfFPhAovku6bkmW8sgElZRbgmTy6ZBDDRVIQP8uSRWQCTdUX4Ik8OVgII
-sE+ET/Ksby2AIBSBE6WPzbh1xGLDjvBfcsPyqOxn2bCs9ducCCBoGIaP8en0xXsaiLdovKZB4DtjIPiF9y7MmQCSAbEnEB6A6EYE/TT4SH6AmAnvXZlTASQVT+IShDfv
-CVzznO+BvLPOsxbNuQCCgihfdh0Qf4CN8YbtuXrmiZ80LwJYACImURS1YRcg/0qfD/MmwAfZNEwRkNaVPH0ygTy7nVZLJpDWlTx9MoE8u51Wy88E0ip58okAT43VhpUJ
-aLfKU+DBT+AHAAD//wOjr7wAAAAGSURBVAMAT4cjcH/DKF0AAAAASUVORK5CYII=
-]],
-    i_chev_der_b = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABvklEQVR4AeyYTUoDQRCFM55BbxB14S6IG5McxoXgoUS8SSDBTRA3iopH8HcvOH4l09DIQJLpqhoCFerR
-PZ2k531VPT2T7Ay2/BUAfRcwKhAVKMxALKHCBBZ/PSpQnMLCCaICksC6rofoFi3Rvox5SasC1xgeoWN0A8QhrUtoAfxkbnfpL7wgtADOMf2FUgjEHIijNGDVqgBUVfWI
-wTH6RCn26MyAMF1OKgAYHQDxQDtBOYRUwnQ5qQFgvBcIVYA+INQBvCFMADwhNgAQW5vJ48I2BRDcBmJK/wOlkN1J7hMHaaBraw4gxoC4pxWIfIuV+8Ql40XhAtA4rGnf
-UR7f+UGXvgsAd2N5pJhhcIhSCMxFOujamgNgXh4lxLwsmeTzjc4pS+uZtihMARrzCxzKRUvzF2J+rGFeZjMD8DBvBuBl3gTA07w6gLd5VYA+zKsBYF4eCeZMmO82rxxP
-tXYb5moNrV3oitn/7/MTzMtPTd6yCy2A/F8J1X1+FboWwBknukNLJJkvvsMyz1qhAsBSeUEjdIKe1jqz0odUAJS8dJomADqlTfFLUYHWZDoORgUck916qqhAa1ocB7e+
-Ar8AAAD//z9pK5gAAAAGSURBVAMAHi+TYVVswggAAAAASUVORK5CYII=
-]],
-    i_chev_der_n = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAB5UlEQVR4AeyYz07CQBDGpXAEwgHeAOHgjRgvgg/jwcSHMsY3McF4IcaLBo2PoGgD3NpaviHdhjRNE7oz
-0zRZssP+adj9fjPL7KbeSc0/DqDqALoIuAhYesBtIUsHWv/cRcDahZYTuAiQA7vd7rDX673AFmif0piWsUSg2Ww+NBqNCezc87znTqczrhUAxP7D9gUQfQA9aUGwRCAI
-gps4jv09Ab4SiHm73T5DV7SwAGy322UYhlNA/Bm1gBi0Wq1H6Uh4ZkHbGhDvgJhlIMS3ExsAOaAKCFaAKiDYAbQhRAA0IY4AIFnHmcZ/QhSAcBOIK2SnX+qTIcVSdpoj
-xY6ob2PiACQOEG9IsQSRPSfu6LmNqQAkAmPUK1haEJUg7ZRsqADQlYJOZWydodEJ8asoim5Nv2wtDoB9Pk7ED4xIiP+B+MvNZvNpxsrWogAknm6m8HzfCEzETznE05xi
-ABrixQC0xIsAaIpnB9AWzwpQhXg2AIgfIdvMM9nmm05frmxDYvOMJQshz99DfDbPz3CFWOYtyjnGAgBB6VsJ7jyPuQsLCwBO1WsIf4Ut0J5Jb5tDIhaA9Xr95fv+BHYB
-8R+HC0i3WQCkRRbN7wCKvKPxzEUg18uKgy4Cis7OXcpFINctioO1j8AOAAD//9Vi4pAAAAAGSURBVAMAIpggcIrYsA0AAAAASUVORK5CYII=
-]],
     i_conduccion_b = [[
 iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAGyklEQVR4AeyZe6zWcxzHn8ddctA4qhnhIH9UInLbyGUjaZUw0WbHZDZS5jIppU7JJcmlKWRsaBIyk0sj
 o8tRyobNJdMynEZInaNhjtf7+/y+z/k+39/t+T3PE2s7Z5/387l8P9/P5/v5/X7fy+93dsvt4n+dBfzfN7DzDtg70N7efiaYA1aBL0ALsCRZNrXNxni67Vctr+oOMJB6
@@ -6332,46 +6293,6 @@ nWB5LuFmdyo0WgrOAMQvG/o3fkLpI/BB0WO8mATXc/XcxeXkP/4v8I/IYqPdYjhC+Dg0NTXVx6fJkUiF
 y5K6hmQ+wBb+9olci6TNTpbMQpJ/pFYjW3tSAEEcltTvJLMCMPJb0R0YtwBoH1yCT8L7sL3EHeJ2aQMP+C4Z/EQoFQDaI8l9WiqVNgJoGbwAvhRehv0xjuHIEaz7+cqp
 A/BNxLffPADfkUur3/wMpDWSvn7OAAAA//+B5qb0AAAABklEQVQDAABa3nCY91mlAAAAAElFTkSuQmCC
 ]],
-    i_mira_b = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAFvElEQVR4AeyYWagcRRSGZ4xG3FBiNAiCeZGYiCaRBEVBvQYFrybXBQlqkIgXJCgYcXnwRURwA41w3U1i
-RMUHEUkimujFBR9cYkg0wQX1SX1wSVxwDcbx+8uuntM109U9PdNZIMP/9zl1quqcOtPd1VW1X2Mv/+1LYHffwNruQKvVGoZbE55XV6K1JcCAb4UnJrwFWQvqTGCaGbES
-McXBqXUmMLhRRjwNLAGe9clwFK6BHxHzaOgxRTa4GqrNJF/Rr+w7AQY0B65nID/AJ+F8eDK0vqXLtgC72myjzytwDuW+IMeVHBB8GnyZzhtglVnmfPptwMdaeDx6JVRK
-gIBnE+1DeAHsFxfiYCM+5yF7Rs8JEOgaorwJD4UhPsVwNzwH6pFCOHzPVTbVfYYe4jAM4/hejOwJPSVAgKvwvhyG0KDmNZvNGfA2qAR3mkY7ZYOqm479XPgJDPEUMRaF
-xli5dAI4Ph1HT8MQNzKw6fCNoEJJeVNmsLQdh/o23OQbGPkMsU4z5ahaKgEcTsXLamjxDYXZDORBZDfci1GP1MfI+2AH6PsAxrnwW2ihqfhYa8jTSyVA54fhZOjxO8oQ
-A9iM7Arq1kE9UjORr3VthJE6TQZDqL9Bj6NQHoKFKEyAf38WXoahx78oFxH4S+RAgK8vcHQplG+EwwJiz3Ba5FKYAH2vgxbLCThuDYPQ8am7ZN+xJn7D2JiyKJPAJabL
-DvQ7YV24Hcf/QI+LvZInowlwC/XBsusWPdd6efP8pXb6ToSzEk5MKyIKd+Frql+HHsfQ/wxf6CajCdBBzyUixdpUiygEHaX6J7gp4XZsV6OXQRgjHEPGR1ECs9utnaZ1
-j1PyLgxUHyIt2A42bQ5BX0nd5cgifBA00CQSmNrFTAIE8NtA1FaLZuHt2+wqWi1tFTsWcNQdQJ9lMA/LaJOJqYbY0riUNa0iUgxR79ERN3Tmt4Fp7xxFX9Fu20Qtme33
-4nP6iwiHKVzVF5FB5bhhAvrXM54jBU1zYXXo72caiIgUB6ZaW6kcNwyoz79dw7RDZLWtFLstD7Zg11SLcDiVq4hw+Jur2iAyqBw3kwDTmKZJLcxQm/qHX8qEaTSmNv//
-nYTQh6dhf9j+onwzzMNS2iiJTD22NC4V4ebmBeo9OuJmEqBzCO1trc3+m9ae6kQao6BpVOslVAfpo9Q95krxSxgjd70lN0UJaK+rdp4LvRKTDHQF9foAnoLUiz0psVEs
-xGVBi3AMmepoAgR9j9b2JRxhPtPSGnMc9N0BN8Et0L4XuR3xfRyV2mIiHH6h70an5VyiCSR9ViZSYgKXe2BduB/HioFweNxdI5cyCdxF/z+hx0L+qcJFlm9cVuJzhLZ2
-2aCY3WY6mrVRmAC3cBvNH4UWzxLQHh3aup51fOnj9nzQcSyJHZizxcIEkuZ3IO0GRuuc9QTOTYI6vzzo+PzjKwXtTqCwDh4EPfT1LrVsL5UA/8SveNaJ2x9ID71w7zOA
-vA24Xx7o3+227GjQV2stTRR2/6sYI8S0W0wfs0OWSkC9cKgvtI5VVPQ8HOUdBjIGNW1STGHvjpJIK2irc9RHMLwN5QORYhGxdAdSQ0wpnYCc4PhFZLiu3x/b9fArBqZ3
-4wbkmZTtbDIB21lwKXyOOj2OS5C2DcXGYmKEX/9G7NdTAnJEgFVInRHp5UZNcQTalVDHLPpndbJA0UEn1W+haal9BTL813VyNxffdk9Ms2L0nIBcEuhdpF6+J5D2JIFi
-T9DpnZYXWn+F+4BSjiolIM8k8SO8Fl07piqnFK+qLz6WwO3olVA5AR+N4Foq6KxTj4wWcTpy12mcvTPSZVtDP71DR9JvGGpZjqk6+k7Ah2YwuiMrkPPhTOx6rhEO38kG
-NT2uQlb+x503cxlYAsZno7ELC3UmoO+GTyVzOu2Ng5B1JqBtYvR0eo9OgOdc28TC0+l+k6jzDvQ7tlL99/oE/gMAAP//Df1g0QAAAAZJREFUAwC+zNBwAkeJwAAAAABJ
-RU5ErkJggg==
-]],
-    i_mira_n = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAGkElEQVR4AeyYa2gcVRTHdzdJQ2o2j5q0CELzRdokmKZisbSgraWCsWnUIkUNpcWAFAUrPj74RUTwBWoh
-Pqp9WLHiBxFpWjTRYBU/WLWljwTbon6yfjA1zebVPEh2/Z3Z3PHemd2Zye6OUuhyztxzzz33nPM/987MnY1FrvLfNQD/9wKGtgIVFRUt1dXV/cKVlZV3hQU0NACxWOxZ
-km4Ujkajz9CGQqEBIOllKmNkAaK6BW1DA1DQLD2cFQxAPB6vYa93VFVVdcFnUqnUYhUXeYno4MNiw/2xSI3l2+YNgIRu5UbtKS4uvsS+38t2aYWbSEz3HRMdvFlsioqK
-BpnzhczFLi/Sg8zLUTweX0YSR0noZybm8pS5W+ayKkdYkZvwkRPlBICg66j4CSLeA+dFrMomVuQkq7EhF0fzBkCgRwh6jGDlsJPOJZPJl9nzdzJwCVY0IDoZQ3EedlKc
-1eilMNudA379eQEgwDYC7cvg9DzJbRgaGmoYHh5+LpFIHAPkrLITWXQyhk09thsZ+wU2CLsP2JbthtKnE/MZt4fZ82sI8KGtmBOo7JOSFMl9M6eyGvR2pZGNZLHtZU4j
-+qcsY/PyEffEalOVvRcIAJWvY58edri5SAIrqexuh97qUuVXEc5hcxZ+DdlFzH0Du1UM/AnbxCp3lZWV3WgrPIRAAKj823CN5md8dnZ2PQmc1nSGODIy0k2VG7BZQcW/
-Mga1DmMnxBeqMdgiYtWWlpa+ZXV8Lr4AqH4zPlpgi6gmRUveS4K/WYoCXPD1K063iG/N3eby8vIGrZ9R9AXArMdgm6jOPqrWaysKJOBTVsm+x4gTZdsasTOFCgLgfjWR
-Ck1PTk6+qPqFbqempp4nxozyy71wn5KztZ4A2D7rqIR+bumemJi4mM2ZQ7+A+c3C6BfAvoTvP4j3tWZ4A0+/tVrfJXoCwHoLbBPVOWJ3PARedh08z4dI5pQw8mWA7PCY
-og8ZMdhGRg66ocieAAi+UozSHInQl3NPxOtHsu0s/V5sFsKKrmPuAZ7vDypFtpab+SfHmDxEHKp/uwYAAqjPwBSJpDAzlo8kTose7qfKmQ5wJazSm8zLSACTMSOmGOpx
-sZEzlqgtJuZ64ln50LriGs6YrD4Drckel0Ycuz4TAdWEXn9fXMCHME1EVnAJSbi+zvKJawCIRCJSdZpAFHVaUX2nvwQ2wjRpYouUpiXjmnNcIyDO5fVvn2GMEGann2Rd
-xwNeSH3opzXT25CFaahOKjXF877P6miXfOIaAEhAXv/1HAGiwiTzuRYnQr9O9PDNJCIvHn1Y5EkuT8MZifm7GJiCDdLjcqwwPm6Y8ynxrHxoXXENAIbXdOdMuklfcWZX
-M61xXzn7dFLRDkbGYUXjogP0HqXI1vLYNGJwT2U9b4kPTwAE7REjxTjbqmSvlkT3U61FAL4FuyaRRYfsS8x5QDdy5qCPiewJgKU9jkP9JmzjhVQnEwPwNKtxiuRlz+v3
-Rdap+F7K4CZYEbiHT6pOptYTwNyEA3OtPAaLWIVXVD+E9nX8F2l+39PkjKIvAG6ql5g5ASvaSqV8D1nKOGiLzzaS148NEzMzM64nndOfL4DR0dFBttG7+kQCHeKQZf91
-qI/lInPulxfjJ465nRLboXN1fQHIjEQi8QIg9A+YhTwterxAaMcD1+tffCrGx/KSkpJu+mWwogvcO4GO7YEA4HWErdRKewW2iFVYyn9DP5LoakvhuGjHA6mu69gh5iS/
-Fh/HkfXv3ytsnTZ09icmclYKCiDCcspfJ9scnipJ9Hv2bydA9O8GueHtLQZY4/xD4jWcid5hFb/DXyVsEyvdTiz7/GQPZBECA5D5PNM+I4Bxrie5YvhxgPwOkEPwE/Dt
-2NlPE5HR3QHvIvGPqbpsx53Ms23EP3bb2a7G21/0XjwvAOKIAAdZ4jUEG5S+YpKpgh+Gd8NS2Vo1RrsY3bewHKcfou+s+gAvrFX4tr+JsQlE8wYgXlniH7gnliO/D5Ak
-bU7EXPn3bg/J17O6xndAUIc5ARDngPibJ8WjVLWZRHL5l+JLVrIZHzt5418Wn7lwzgBUMBLoY+k3kkwtlewAzFH4LOP6yiRFB3fBO1i965nXMjY21o9dXpQ3ABVdVoRt
-sB8wrfAKVmZAjSH/JTq4DT6YT8WVT9UWDIByaLX/4SU0AGwV+8sO2fh3upD4QgPA/SCfp57/ThcCSGgA2OfyedrAnvf8dzpfEKEByDexoPOvegD/AAAA///n2p60AAAA
-BklEQVQDAODJ0n+N10ypAAAAAElFTkSuQmCC
-]],
     i_mundo_b = [[
 iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAGoUlEQVR4AeyZCahVVRSGz7NoIKEykwahrCybtImIisRocijCrMgSQqgIQjIayLLI1KQosygqoiiaqLRB
 zcoIKdSiwUYymiRDoomktGh6ff++d9237jr73nfve0IG77H+s4a99lp73bPPPvvs16/4n//1FfBf38C+O2B3oLOz81gwD6wE34DfgJHktShqmws/2vr1lvfqDjCQQWAO
@@ -6561,46 +6482,6 @@ jLMsf6efrJBvADIaIFr4xCKb8Gep2/hqwDTl5eX9AhjzeSc/P/8UevnGqsyH2VvyDUnVMyoDAZCR5JEW
 3p5U3IjLsQG/PW5t6erSBWCOxyn1CUA2EViUANcBpgluhr/GSP53cAp5P7yay3EbuqxSxgD0aAjwA8DUwdXwckCVwvOQ74AP6rbZkrMKIFtBBelnGkCQbE2F7T8AAAD/
 /5xVrfoAAAAGSURBVAMAbMnkf6NE1F8AAAAASUVORK5CYII=
 ]],
-    i_pin_b = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAFzklEQVR4AeyYeawdUxzH77NvD00IUaKiglANkoZXLQlSpZpYIqGU1BK7kFZQsUaEUiFaiZ1YUkHsRPxD
-iiixVDxPF41GKCLiD9TW28937jnzfnPezL1n7sxL0+TdfL/zW86Z3/n9zp05c2Y2aWzkv5ECNvQfOPIPFP0DzWZzDJzgOKaoX1V/bf8AiU6DD8AB2CSxVfAjx1XyQbUt
-QE7FXwsqF0AyB8FPyOZVeCHcFxZBbRfT+AbnvA/HoVdCpQJIYD6jfwEPhWXRxwlLiXEnsmt0VQCDjoYfMuqVMA9Lcb4A73aULh/mEMwh1mK425CWCEfpAhhoJ+IuhodB
-ix8wzoU79vT0jIenwtmO0serDV4Av4cWEzFUxChkKZQugOivwHBVmUeio+Gj8Hfac6E2+BCN+8D7ocVeGLqPEPEoVQCzfxOhD4cWV5DU1dbRSaf/WngZ/WZDi4mMMdc6
-OunRBRB4V4JdAy008/dZRxmdInSP3BWccx1j6TIN3PlmdAGcPg9uCT3eI4EhM8/gvfB6qKVyDVKUrsS29Sd7SYw56O9Cj21QolemqAJIYnuCzoAe/6OcAzOg3+k4VsJb
-oR5WuyBF6behr3R9UDO4CEsxEQlm0k9jJka7Q1QBBFACPUiPRcycnrTebjDgkRjPwJ1hEVTM0/TVqpP2IdbXGM9Bj01RjoUdEVvA8UGk161NQr3YT8EQ3+AQESk0Ec9y
-znapp6VkYuLSpCHaI7aAA4IwHwf2Sdi7Q4+vUMYys/uJ0qEtZA/sE6GFtiPWDse0bakeW4C9HrVR+zaN0FLCweaSuO6FpNXpNybG4CE8Z/VgU6LtkBw7HGILsKvPbyRk
-bzgNsacOhnnbhk9Nu1Q9uCQTEvMvFPsQ3Bq7I2IL+NFEGsX1q5vMuBrLrIGuSwSRQejLnEPMLehtZ92OSVM+YgtY3WikAXQT7p1aLeXzlkiP2qBt5i2S2xxd6z0ixWep
-1lLGtkR6/C7V2ijdFKBw4XbiTZz2vpiGvYzEF8IH0ZfD46CH7Le94aS2105NRK0FaOucRHWHU5xMhLt+z06MwYOucT2gzsdl7xEtAjM4Zy1+i5Otgf4B7IjYf0BrtG4y
-H3AKM7uVNyRJSFtsJfu37AIqxiz6ZpZhYumZcLQ5R/30rxpXvhpVAANqtlSEj6Ibbro3vKTfw+gHQl0efyI9/kB5C46jz+PIEIqlmN7/Ev3+9UY7GVWAC/C8k15oO+z1
-VDLwCjgFh2ZVa/3+6L34psL02YDPItxWh2PZvhm9TAEvcuYa6HEEf72ewN7OSJJtwn44AHXdZ9q9QYzT0A+GHnpb00uTt9vK6AJIQn9p+DS9nQSiY4SZcK6W2nDrfANj
-/Rf2LbLLDq5r3C6X+kxyVVHwCL/eJ+wKpR1u3j1SGKpUAczMOiKF/8ItzGT4jky39uAcJR7GupYxCi+3vIilClAABtC2WV/cZIraszwmpSSfpL9deZYQexG+UihdgIt+
-JvIf6HEUMxo+yHzbEEnfWTgnQw/FOsMbZWRXBTBTKxjkZmhxL4nZdwLbluquzz2po6Xoxi1aYls9Co5dFeBi3YHUiwsigXaSL5OgvSySBn9wbVoi7ftFP+36YIAoj64L
-4F/QO8HMYMhDsPXhCpGLR/DaNR+zcRaxtDhIL82uC9BIDKyXlEulG+qLwuXGTlRmX99Rde8ktjtc4mI4s7yoVICGI4EFyHAVmk/CJ+BP4PTwA9YTnLsw6VDhULkAjU0i
-WlX0b8gU9cb2Gon3QX1u0TbEjrWETufByrBBqwbTS8wvQZB3sLUttje2vmJPp+jo7QIxClFbASSkd1jt6X81o+khJ3qXCjyGvj95R1VZWwFKhMS+ROoBpURRM/gZazJ9
-9BUOtR7UWoBSIsH+RqMxCd0WoRmfRNsA/lpRewHKjkT1FU7fP/XqqPfpPnyZzyjqVweHpQAlRsLL4QSo5O0WXM21cdgKqC3DDoFGCugwQcPevB4AAP//4cBmkAAAAAZJ
-REFUAwAcaKRwcAcRAAAAAABJRU5ErkJggg==
-]],
-    i_pin_n = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAGo0lEQVR4AeyYe4hUVRzH777b9ywURiYqGVuYSQVSu7kGFra1CT0IKrPYMrKyMFwpDXsRUZtGkQZpT3pg
-lJSVG9E/xdaiRY8N11WzJREfSez70e7OTp/fnTnHc+/OzJ47M0sEO/y+9/c45/7O73fed7Kd//lvKoH/egCnRiDRCIRCoVllZWULBCI7k/TL2AhUVFTUgVdBO4hkZWV1
-5OTk7BaILDbQXl5evpmkajOVT9oJENSF9PCPBPQZuBdUgkRUmZ2dfR9J7eK978C8RBVt7WklQOCbaOhXevgSeFCq4oVWkngenjKllEBhYeF0Gm4h8NXxWo5EIq3gY7Ax
-BpFb49XF1oCv5qKiorOQA1PgBEpLS08vKChopqVLgUlHCfYuDKGurq754CawJgaR50vZ2NjYPfAjwKTq/Pz8ZtZHhWm0kQMnkJubu5Oen+Vz3tjZ2TmdYN+Ad/vKtCpl
-3d3dW+HnkuwrugABn7NZH7KO0OwpUALM+SdwfRnQRCAPEdBabbAThkh2Fe+u8VWvZjqt99mSqtYJFBcXn4mnR4BJjQTysmkIIvPuRuq/AExaJ9PUNCSTrRPIy8trZJgL
-lDN679sEPV8aCoUeoyd3wY8LRAbreLcYeAgfDfj6xjAWsc1a70y2CZTRwG3AJRoMgztdxXhwQN1CwIdI9GnMtfBpApHBM1ImdZA9NDo6uhJ/YcO4HFnahCUnqwTYHSSY
-LOWKoLazGDuULpzgFtFz71N2hujxQNk0Fup7TJFqs7yvr28fZR8qG3IObV6l9GTcKgEcXuNz8oVPL6XOuz6bqPt5CGBRol4WO9kHaCXAJI9P6lldN6wSoJW5QFM4HP5B
-Kwj0/vWws4Givez3c5jf5wlEpsBMZAZT6TpsmphGch3ROgl42tQFPsE2AT0fmauRnp6eP0w//saos54pdkjVEZkkHle6cP87vb29h8VuoNyQE4pWCdCY3n3w1AnMBYfq
-zJSHAgmMuzZg+0mVC2ctzBZuYBBZH4LUL0SfkKwSwMsxoEiO+xylCKexA8IVSHiGkhX32/zvUC8f6F6nvtkmRfHJKgEaO+w4UQc4zmIXOSeq6ecvWooKDbBcoCiPHheb
-0oX/LA+FkpKSOUqO8T9jPCmzSgAPnvnJdum5TnCiNpGkXhckWcfCPsDhtQW8hnwQH1cDl6h7kHe+cpXYA59yvY5pLstcAjTY4ro89bjxlOhKgwR9hyvFHugyx1eirkDW
-awRfERa0HIpDlGlihG7QCgL1vodNSFYjwC4ie7QsMuVwCcJpQBPbZTOBraDhf7RxvCA+6tnFPNsw1Up4bzFc0SAj1KSUZNwqARwM0YAkgeg49Gg+J+VSx/cj0W0kcQFm
-mR4DcEX9CF9SNo/A3kL2ENNsqfg0jJ8gj4AJyTYBhwQ+Mr0x5KtMXcn07u+MxhJQMjIyMpcD6nzkUlBLgvpsUPWF49tzrUb3tCV1EsE6ARrfgZPjQNHlLE45gZXu5xHu
-OG0cUO0UREBcYiRvpvcvMgqPMEo7DT2paJ0AXkaYAv7T9FnsQXxQ3UO5BO+5OtP7G6gxCqwoUOOMwjYa0NslLVTSgw/DUyLm/loSMHeoDnp/3BpJ5jxQAjgao0HPKLAW
-nmIq+b+RqZqceGcmneHxhf4obyWcbpSNo6AJOCxGuTbvNjzJneVNQ7cV36Ez5Prg1if4PYzwdlcJ8AicgPjmOr2MBodFFhDIFfSo5yATeyJQt553alS5+AK3Kj0ITykB
-2SoJ4EmzIfSX+MPL/CYwi7Usdaj7ojYgEPwGej/uFktxUkopAfHIVHoOvhcoKucPr09R9LRA9lM+dWSL1N8XVGgj+EZ4SpRyArQWZluVj2/EKNGzFzM9tka18U/KXqeO
-uec7+LidmmMgJUonAYeek4+UB8yWCXA5gT5o2kTGtpqyZSIbuD/mwzAFE9NKQJpiKm1mDvt3oU3s8ddKuSAme/7A4p23eXeLlKeDtBOQxjl86glIRkNUuezJF9vnfPhU
-0fOLKNtB7+u20Pfwzt1u5TQf2mmafpzh4eE6Ajtp+uHvk68JvAmYC/solzy5yVpfF0yffjljCQwMDBwj0MUk8bfRiBxyAtdE2UmCv7K/v/+Ea8jAI2MJSCzM6d+4PtdI
-oKKbwPYXB2ANN9R9pj1dOaMJSDAE2BYOhxcSsJ5OyCcIfmHsai3VMoaMJyCREeh+9vdqApdPxxZ4FTbPXy9SLxOYlAQkMK4b8s/DAqZVFXu9eQWX4oxh0hLIWIQTOJpK
-YIIOmvTifwEAAP//2HeAygAAAAZJREFUAwARk51/pcfFxwAAAABJRU5ErkJggg==
-]],
     i_poderes_b = [[
 iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAADj0lEQVR4AeyYS6hNURzGz6EkMqMo74gbAwa3FANFmKk7kZLumNlNrkeSFBeJgTIw8IySjBSJjKSkKIqI
 y8BjoAzEgHT8/vucvfufdfZjnbXXOnffuqfv2+ux1/7v71tn7bXX2pNq4/w3YWCs/8Dg/0Cj0eiD7+FruNa34aAGEDwdwXfgYrgcHoJeEdQASs9BEU8SYV509HgIZoDe
@@ -6655,34 +6536,6 @@ tNH9Ue6+/NNnmmzXogWIl80UxKyyoSou5WI+lufPCdNVATIFwzBGnEDKbaf7H910X+K6KkAOAnqGdQz+
 VuBd4yg+EVMG659ggr2b9Qgsf8XN7YKrl8AFAf3eDArwu+N6vGACekf81oMJ+N1xPV4wAb0jfuvBBPzuuB4vmIDeEb/1YAJ+d1yPV64J7ORDuVEKk8gOeNVUrgJWnYhX
 AM8F8NHvi9eguh9Y6jeA+nZB3XMBfFORANm+CDZKoHEKsPtq3RWE5wL4kvYln2EPwKFVcozP269cZWtzyHMBNljrYgoKWJe2K0ErfgL/AQAA//8IWS/bAAAABklEQVQD
 AJRhrnCt1FzRAAAAAElFTkSuQmCC
-]],
-    i_rueda_b = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAADuElEQVR4AeyZ24vNURTHZ8jdPDBNDa/kkksmDyiX4WkUSpkHKWlqQiY0IkoGD1IekFwj5kWRvChNYcaM
-8MCTyzTkD5DLUEOhzPh8j99P62xnzvntfc4ZqaP1tddev7W+a629f+c357fPsLL//F+pgX+9gaUdsDswMDCwCLSA26AH9EWQLtsB5gttTL56QXaAoqrBTYp5BA6ClWA6
-GB9BumyHmD/G9zqoRs9b8m6AQpZRRTdYC5JKPY7dUSxquOTVAAU0kLodTAC+oph2ODb6Blr/4AZIvAqii8Dl6MS2BWhnqhiFWsat4CGwotgrcNVZo48uAh//lC8JJ6Nc
-A+Uglm8oTWB5eXn5edAFPkToZDzHtaWgGXwHsYjjBpxBn4mgBsjcAsaCWFRQDUWeBgOx0R251g+OY58PFMOQknH8vx94i3cDrFQFWTYBK80U1mMN+NWBFxHSbhF8X+K7
-G1hpxHeMNSTRvRuAdDUYCWK5T0Fn4okZ96LPirCTMU2IOYXBfibEqc8V5uQS0sA6h/6EM4+n02KFcQ7IJG6sy50pJs0W0sDcNIayMt0Ojinx1I11uXMShTQw2rD+4FZ4
-Y+a+6msCfoJYLHdsyzqGNDDcMH40urdK8yr+vQkcZfREakgDiYiHyqnUwFCt9GB5irkDz0zS50YvqOrRgHdePeP1mBSkexMkCShaAzxh2sDsCG1JignxKVoDIcWExJQa
-CFm1QsaUdqCQqxnCVdqBkFUrZExpBwq5miFcITvwxSSq5EU8hCNFQewIlEoQi+WObVnHkOTvDKNexPXibkxeqmLVRBz0NlaSjiENuN8s5yVNlsGvxrHZb7DOpczTkAbu
-OFTbuBV0uuaYs0+J0avpdsfL5XYu/z0NaeAeNPb0bQHzHcBXdMRod0+cd31JvBvg6/FnklwGVo6wojOtIZse+R52fC7A/dWx5Zx6NxAx7mJUIwwp0ZHgEwprAoPeTroG
-dNs8Jcoeoeh0Qyd5mP0kqAFWSsWvJ5W2nSElOqDVcWEHRW4GS8BEUAWk68i9C8+TwB4M9zOvjzhR/SSoAaUgod6yGtFVAMMf0e8COkpXsVpZPXaln8VjMbCi2Aa4OqzR
-Rw9uQElIfIlxBfgEfEW7WAtHq2+g9c+rARFRgH6RmYp+DPz+EKJkEf21Pcr1KcQ+YMxL8m5A2SmkF+xBnwT028EtxldAxQrSZduArRrffaAXPW8pSANxFRTVB1rBGjAD
-VESQLttV5kl2KabMORa0gZzZiuBQaqAIi+pF+QsAAP//fIMMSQAAAAZJREFUAwBgCwNw+jlRcwAAAABJRU5ErkJggg==
-]],
-    i_rueda_n = [[
-iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAESklEQVR4AeyZ32uNcRzHnW3H2NnZD1K4JT/yI3KBwnBFoRQXUlqrZbJGE1EyXEi5QAsjYjeK5EYthc0m
-XHCFaZM/QJid7UyhnTOvz7Pnefo+T2dn3+9znk3qrM/nfD/fz/P5vL+f9/fH2Z7vCqb85z95Av96AfMroK5APB5fW1FR0VRZWdmG9qBJW8Vu49mpsrKyNWpOrnYoKxCL
-xWZT3MOioqJXkUjkNEVtRReipbaKvZVnZwoLC18Te19yeJaz5EyAYqqi0ehHitupWw2xuyVHcnVzxorLiQAF1ADcTkGVtEZi57SDsc8o0RccmAB7extYNynEgzEyMtKZ
-TqfraKuGh4dniWJvxHeA+JeoK3buHc7FFtdpaHgG180tKSmZS+w9CojQOvILoz6RSGwaGBi4TtuVTCa/i2J34mvp7+/fAJlG9DexlggG5+JB0DMRiEBxcXETo5eglkhB
-zPRKCryCYwQdS9KQuUjsKslRgmKciZNKX9sMQiDO4NXqCMxiIzPdo/pkW7DNPoiKrT4bGhrqpn8UVaWWznTUSIwJUNB2Cp7qjAKZ58z8VafvtAUFBcexl4iyRQ7TeoSV
-aMbhngnBLC8vl3OFW1+MCVDwLh/8JV/f6lLQAssY/Vg22ng/OdieXEj7sb0JGXrGBMBYjrpCEbId3L6JkUql/LkebB0sYwLM7DQHmNX4Mzg4+Nnpm7achU9gpJw8bBfb
-8Y3XGhMAsBC1BDJ9lhH8IwXGNycdu9ixddsgBHSxJyUuT2BSpjnLIBO5Au+Ucd8rdqimAQGzcfmKlO94+Zrstm0zAM3oCSPA1+tjfkMvFRVbsx7jsAkjYFxJwIQ8gYAT
-F1pafgVCm8qAQPkVCDhxoaXlVyC0qQwIZLwCvHQMOWNhz8Q2xiDHkaiNYfWxXWzLofFhPDgvHV8dXOypvOTLi7vjMmq5lVsCRlRJ+qLYWqYxAVA9f1kyayvwBZWVvkT1
-L1jfo8xdYwK8xD9RoZjBg/TVGzq6WiKvpg2+SA+271nGrjEBCn7GrKu3b6vZCocyomdxcgfUCJa7eoLJXdHTLCkZHxkTYJAESLdRVyjkXGlp6WLXMY4hsdwBnVXDwLhB
-/ydqJMYEbPQjzJgQsbtTpnO3+YYDXY8j23aKsFoNxL4lzr1CAasPlZs83GYSiICsAmdhD4OqWynG0M0U2MH22A+Z9dyJzmC2Z4mNr462i5m+TJx6MZymv1swaY0lEAEZ
-Rd6yIFCLSgHispQCq9geLXS6uBPtY7bla7cL3zV861BX7Nwaiu9wnYZGYAIyDnf+t2g3U0g/rZGQk4DsRopvNUr0BedEQLAoQP4jMx/7Ajp6CDGyiPy2Pc8WnMf78oss
-cVqPciYgo7CdflDMMXQOM1uNPsLfi0qxor22by8xs9ETksPznCUUAkoVSVakFd1BkYvQuK2LbN9dYnVWiTA9CZuA3qghRuUJhDiZgaD+AgAA//+dc4OyAAAABklEQVQD
-ALG9k3DUQ4c3AAAAAElFTkSuQmCC
 ]],
     i_sol_b = [[
 iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAE60lEQVR4AeyYScgURxTHZ4SQXBLJJTEGjKdEk3jLQiQLBGOIEmISRRFcQVyP6kkvelL0piiioiAI6icq
@@ -10697,8 +10550,12 @@ local ANCHOS = {
 
 
 -- ═════════════════════════════════════════════════════════
--- RENDER: todo con el overlay de Susano (BeginFrame / DrawRectFilled / DrawText / DrawImage / SubmitFrame)
---   Todas las llamadas usan colores 0..1 (también al pasárselos a Susano).
+-- RENDER: dos modos de dibujo
+--   · Susano  -> overlay de Susano (BeginFrame / DrawRectFilled / DrawText / DrawImage / SubmitFrame)
+--   · Nativo  -> DrawRect / texto de GTA (funciona siempre, y es lo que usarás en el recurso)
+--   F9 cambia de modo en cualquier momento.
+--   Todas las llamadas usan colores 0..1; el render los convierte a 0..255,
+--   que es lo que Susano interpreta sin ambigüedad.
 -- ═════════════════════════════════════════════════════════
 local function SusanoDisponible()
     return type(Susano) == "table"
@@ -10725,13 +10582,11 @@ R = { modo = "susano", ok = SusanoDisponible(), sw = 1920, sh = 1080, alpha = 1,
 
 local floor, min, max = math.floor, math.min, math.max
 
--- Color 0..1 recortado. Susano acepta 0..1 o 0..255 y lo detecta solo; con 0..1 nunca se confunde
--- (en 0..255 un negro con transparencia, p. ej. 0,0,0,30, podía leerse como 0..1 y salir opaco).
--- DrawImage solo entiende 0..1: con 0..255 las imágenes no se desvanecían al cerrar el menú.
+-- Color 0..1 -> 0..255 (igual que antes: lo que no es un número válido cuenta como 1)
 local function C(v)
-    if v >= 1 or v ~= v then return 1.0 end
-    if v <= 0 then return 0.0 end
-    return v
+    if v >= 1 or v ~= v then return 255 end
+    if v <= 0 then return 0 end
+    return floor(v * 255 + 0.5)
 end
 
 -- Cachés de texto: los mismos textos se dibujan cada frame, así que el trabajo se hace una sola vez.
@@ -10937,7 +10792,7 @@ function R.Fuente(estilo, size)
     return e[1], e[2]
 end
 
-R.IMAGENES = { "cursor", "i_ajustes_b", "i_ajustes_n", "i_ayuda_b", "i_ayuda_n", "i_baile_b", "i_baile_n", "i_buscar_b", "i_buscar_n", "i_camara_b", "i_camara_n", "i_cargar_b", "i_cargar_n", "i_cerrar_b", "i_cerrar_n", "i_chev_abajo_b", "i_chev_abajo_n", "i_chev_der_b", "i_chev_der_n", "i_conduccion_b", "i_conduccion_n", "i_copiar_b", "i_copiar_n", "i_efectos_b", "i_efectos_n", "i_guardado_b", "i_guardado_n", "i_inicio_b", "i_inicio_n", "i_luna_b", "i_luna_n", "i_manguera_b", "i_manguera_n", "i_mira_b", "i_mira_n", "i_mundo_b", "i_mundo_n", "i_novedades_b", "i_novedades_n", "i_npcs_b", "i_npcs_n", "i_pegar_b", "i_pegar_n", "i_personal_b", "i_personal_n", "i_personalizar_b", "i_personalizar_n", "i_pin_b", "i_pin_n", "i_poderes_b", "i_poderes_n", "i_ropa_b", "i_ropa_n", "i_rueda_b", "i_rueda_n", "i_sol_b", "i_sol_n", "i_superman_b", "i_superman_n", "i_tecla_b", "i_tecla_n", "i_tuneo_b", "i_tuneo_n", "i_vehiculos_b", "i_vehiculos_n", "logo", "logo_n" }
+R.IMAGENES = { "cursor", "i_ajustes_b", "i_ajustes_n", "i_ayuda_b", "i_ayuda_n", "i_baile_b", "i_baile_n", "i_buscar_b", "i_buscar_n", "i_camara_b", "i_camara_n", "i_cargar_b", "i_cargar_n", "i_cerrar_b", "i_cerrar_n", "i_conduccion_b", "i_conduccion_n", "i_copiar_b", "i_copiar_n", "i_efectos_b", "i_efectos_n", "i_guardado_b", "i_guardado_n", "i_inicio_b", "i_inicio_n", "i_luna_b", "i_luna_n", "i_manguera_b", "i_manguera_n", "i_mundo_b", "i_mundo_n", "i_novedades_b", "i_novedades_n", "i_npcs_b", "i_npcs_n", "i_pegar_b", "i_pegar_n", "i_personal_b", "i_personal_n", "i_personalizar_b", "i_personalizar_n", "i_poderes_b", "i_poderes_n", "i_ropa_b", "i_ropa_n", "i_sol_b", "i_sol_n", "i_superman_b", "i_superman_n", "i_tecla_b", "i_tecla_n", "i_tuneo_b", "i_tuneo_n", "i_vehiculos_b", "i_vehiculos_n", "logo", "logo_n" }
 
 -- Carga las fuentes y las imágenes incrustadas en el overlay de Susano.
 -- Si algo no está disponible en tu versión, se usa lo de por defecto sin romper nada.
@@ -10980,7 +10835,7 @@ function R.CargarRecursos()
         R.fuentes.negrita = FuenteArchivo({ "C:/Windows/Fonts/segoeuisb.ttf", "C:/Windows/Fonts/segoeuib.ttf" }, 15)
         R.fuentes.titulo  = FuenteArchivo({ "C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/arialbd.ttf" }, 18)
     end
-    log[#log + 1] = "fuente=" .. (R.poppins and "Poppins" or (R.fuentes.normal and "Segoe UI" or "default"))
+    log[#log + 1] = "fuente=" .. (R.poppins and "Poppins" or (R.fuentes.normal and "Segoe UI" or "por defecto"))
 
     -- Imágenes
     local n = 0
@@ -11051,7 +10906,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v11.5"
+local VERSION = "v11.4"
 
 -- ═════════════════════════════════════════════════════════
 -- SURGE · INTERFAZ
@@ -11168,9 +11023,9 @@ function R.ChipTecla(it, xd, iy, h, foco)
     local w
     if esperando then
         local A = Acento()
-        w = Ancho("Press a key", 12) + 16
+        w = Ancho("Pulsa una tecla", 12) + 16
         R.Borde(xd - w, cy - 11, w, 22, A[1], A[2], A[3], 0.45 + 0.45 * math.sin(Anim.t * 7), 1, 5)
-        R.Text(xd - w + 8, cy - 9, "Press a key", 12, T1[1], T1[2], T1[3], 1)
+        R.Text(xd - w + 8, cy - 9, "Pulsa una tecla", 12, T1[1], T1[2], T1[3], 1)
     elseif tecla then
         local txt = NombreTecla(tecla)
         w = Ancho(txt, 12, "negrita") + 14
@@ -11266,7 +11121,7 @@ local function DibujarItem(it, px, pw, iy, foco, A)
         local clave = ((r * 256 + g) * 256 + b) * 256 + a
         if it._ck ~= clave or it._ka ~= Config[it.key or ""] then
             it._ck, it._ka = clave, Config[it.key or ""]
-            it._hex = (it.auto and Config[it.key] == "") and "Automatic" or ("#" .. Colores.AHex(r, g, b, a):sub(1, it.alfa and 8 or 6))
+            it._hex = (it.auto and Config[it.key] == "") and "Automático" or ("#" .. Colores.AHex(r, g, b, a):sub(1, it.alfa and 8 or 6))
         end
         R.Muestra(der - 20, iy + (h - 20) / 2, 20, 20, r / 255, g / 255, b / 255, a / 255)
         local wv = Ancho(it._hex, 13)
@@ -11488,44 +11343,16 @@ function R.DibujarFreecam(sw, sh)
         R.Linea(cx, cy + a, cx, cy + b, A[1], A[2], A[3], 1, 2)
     end
     R.Circulo(cx, cy, 1.6, true, 1, 1, 1, 1)
-    local T1, T2, G, Cp = UI.texto, UI.texto2, UI.gris, UI.capa
-    -- barra de ayuda arriba
-    local kf = K("freecam")
-    if UI.fcK1 ~= kf then
-        UI.fcK1 = kf
-        UI.fcLinea = "Freecam   ·   W A S D move   ·   Space / Ctrl up and down   ·   Shift fast   ·   wheel changes tool   ·   " .. kf .. " exit"
-        UI.fcAncho = Ancho(UI.fcLinea, 13) + 36
+    local kf, km = K("freecam"), K("fijarAgua")
+    if UI.fcK1 ~= kf or UI.fcK2 ~= km then
+        UI.fcK1, UI.fcK2 = kf, km
+        UI.fcLinea = "Freecam   ·   W A S D mover   ·   Espacio / Ctrl subir y bajar   ·   Shift rápido   ·   "
+            .. km .. " marcar   ·   " .. kf .. " salir"
+        UI.fcAncho = Ancho(UI.fcLinea, 14) + 40
     end
-    R.Pildora(cx - UI.fcAncho / 2, 22, UI.fcAncho, 30, A, nil)
-    R.TextC(cx, 28, UI.fcLinea, 13, T1[1], T1[2], T1[3], 1)
-
-    -- barra de herramientas abajo (la activa, resaltada); se cambian con la rueda
-    local H = Cam.HERR
-    if not UI.fcCelda then                               -- ancho de celda según el nombre más largo (una vez)
-        local m = 0
-        for _, t in ipairs(H) do m = max(m, Ancho(t.nombre, 13, "negrita")) end
-        UI.fcCelda = floor(m + 60)
-    end
-    local cw, gap, ih = UI.fcCelda, 8, 44
-    local total = #H * cw + (#H - 1) * gap
-    local bx = cx - total / 2
-    local by = sh - 118
-    for i, t in ipairs(H) do
-        local activa = i == Cam.herr
-        local x = bx + (i - 1) * (cw + gap)
-        R.Pildora(x, by, cw, ih, A, nil)
-        if activa then R.Rect(x, by, cw, ih, A[1], A[2], A[3], 0.16, 8); R.Borde(x, by, cw, ih, A[1], A[2], A[3], 0.9, 1.5, 8) end
-        Icono(t.icono, x + 24, by + ih / 2, 20, activa and 1 or 0.6)
-        local c = activa and T1 or T2
-        R.Text(x + 42, by + ih / 2 - 8, t.nombre, 13, c[1], c[2], c[3], 1, false, activa and "negrita" or nil)
-    end
-    -- ayuda de la herramienta activa, justo encima
-    local t = H[Cam.herr]
-    if t then
-        local aw = Ancho(t.ayuda, 13) + 28
-        R.Pildora(cx - aw / 2, by - 40, aw, 30, A, nil)
-        R.TextC(cx, by - 34, t.ayuda, 13, T1[1], T1[2], T1[3], 1)
-    end
+    local w = UI.fcAncho
+    R.Pildora(cx - w / 2, 24, w, 34, A, nil)
+    R.TextC(cx, 31, UI.fcLinea, 14, UI.texto[1], UI.texto[2], UI.texto[3], 1)
 end
 
 -- ── Cuadro de texto (matrícula...) ──
@@ -11541,12 +11368,12 @@ function R.DibujarPrompt(sw, sh)
     local Tj, Cp, T1, G = UI.tarjeta, UI.capa, UI.texto, UI.gris
     R.Rect(x, y, W, H, Tj[1], Tj[2], Tj[3], 1, 10)
     R.Borde(x, y, W, H, Cp[1], Cp[2], Cp[3], 0.14, 1, 10)
-    R.Text(x + 24, y + 20, p.titulo or "Type", 16, T1[1], T1[2], T1[3], 1, false, "negrita")
+    R.Text(x + 24, y + 20, p.titulo or "Escribe", 16, T1[1], T1[2], T1[3], 1, false, "negrita")
     R.Rect(x + 24, y + 60, W - 48, 42, Cp[1], Cp[2], Cp[3], 0.04, 8)
     R.Borde(x + 24, y + 60, W - 48, 42, A[1], A[2], A[3], 0.85, 1, 8)
     local cursor = (floor(GetGameTimer() / 500) % 2 == 0) and "|" or ""
     R.Text(x + 38, y + 70, p.texto .. cursor, 17, T1[1], T1[2], T1[3], 1)
-    R.Text(x + 24, y + 122, "Enter accept   ·   Esc cancel   ·   Del clears all", 13, G[1], G[2], G[3], 1)
+    R.Text(x + 24, y + 122, "Enter aceptar   ·   Esc cancelar   ·   Supr borra todo", 13, G[1], G[2], G[3], 1)
     local n = #p.texto .. "/" .. p.max
     R.Text(x + W - 24 - Ancho(n, 13), y + 122, n, 13, T1[1], T1[2], T1[3], 0.8)
     R.alpha = 1
@@ -11569,9 +11396,7 @@ function R.DibujarMundo()
                 local w = 18 * (1 - j / 15)
                 R.Rect(sx - w / 2, sy - 29 + j * 1.2, w, 1.4, m.r, m.g, m.b, a)
             end
-            if type(m.aro) == "number" then
-                R.RecuadroEntidad(m.aro, m.r, m.g, m.b, a)        -- marcado: recuadro de todo el cuerpo
-            elseif m.aro then
+            if m.aro then
                 local ea, ax, ay = Proyectar(m.aro.x, m.aro.y, m.aro.z)
                 if ea then
                     R.Circulo(ax, ay, 26, false, 0, 0, 0, 0.5 * a, 4)
@@ -11585,38 +11410,6 @@ end
 
 -- ── Contorno del coche apuntado: caja 3D en el overlay (color de Personalizar) ──
 R.BITS, R.cajaX, R.cajaY, R.cajaOk = { 1, 2, 4 }, {}, {}, {}
--- Recuadro en pantalla alrededor de todo el cuerpo (su caja del modelo, de los pies a la cabeza):
--- esquinas marcadas + relleno muy suave. Así se ve a quién tienes marcado entero, no un aro en el pie.
-function R.RecuadroEntidad(e, r, g, b, a)
-    if not e or not DoesEntityExist(e) then return end
-    local mn, mx = GetModelDimensions(GetEntityModel(e))
-    local x0, y0, x1, y1 = 1e9, 1e9, -1e9, -1e9
-    local alguno = false
-    for xi = 0, 1 do for yi = 0, 1 do for zi = 0, 1 do
-        local w = GetOffsetFromEntityInWorldCoords(e, xi == 0 and mn.x or mx.x, yi == 0 and mn.y or mx.y, zi == 0 and mn.z or mx.z)
-        local en, sx, sy = Proyectar(w.x, w.y, w.z)
-        if en then
-            alguno = true
-            if sx < x0 then x0 = sx end; if sx > x1 then x1 = sx end
-            if sy < y0 then y0 = sy end; if sy > y1 then y1 = sy end
-        end
-    end end end
-    if not alguno then return end
-    local w, h = x1 - x0, y1 - y0
-    if w < 4 or h < 4 or w > R.sw or h > R.sh then return end
-    R.Rect(x0, y0, w, h, r, g, b, 0.07 * a)                       -- relleno suave
-    local L = math.max(6, math.min(w, h) * 0.28)                  -- largo de cada esquina
-    local esq = { { x0, y0, 1, 1 }, { x1, y0, -1, 1 }, { x0, y1, 1, -1 }, { x1, y1, -1, -1 } }
-    for k = 1, 4 do
-        local q = esq[k]
-        local ex, ey, dx, dy = q[1], q[2], q[3], q[4]
-        R.Linea(ex, ey, ex + L * dx, ey, 0, 0, 0, 0.55 * a, 4)
-        R.Linea(ex, ey, ex, ey + L * dy, 0, 0, 0, 0.55 * a, 4)
-        R.Linea(ex, ey, ex + L * dx, ey, r, g, b, a, 2)
-        R.Linea(ex, ey, ex, ey + L * dy, r, g, b, a, 2)
-    end
-end
-
 function R.CajaEntidad(e, c)
     local mn, mx = GetModelDimensions(GetEntityModel(e))
     local X, Y, OK = R.cajaX, R.cajaY, R.cajaOk
@@ -11671,79 +11464,72 @@ function UI.Tema()
     return t
 end
 
-UI.TIPOS = { toggle = "Switch", slider = "Slider", lista = "List", bind = "Key", accion = "Button",
-             campo = "Text", cat = "Category", texto = "Info", color = "Color" }
+UI.TIPOS = { toggle = "Interruptor", slider = "Barra", lista = "Lista", bind = "Tecla", accion = "Botón",
+             campo = "Texto", cat = "Categoría", texto = "Info", color = "Color" }
 
 -- Qué es cada sección (va en su columna de info, en el Inicio y en la búsqueda)
 UI.docSeccion = {
-    ["Character"] = "Clothes, hair, face, tattoos and outfits. With «Lock my clothes» the server can't touch them.",
-    ["Animations"] = "Dances and animations for you, for an NPC or with someone.",
-    ["Powers"] = "Immortal, super jump, fly and a few more.",
-    ["Tuning"] = "Parts, paint, lights and garage for the car you're in or the one beside you.",
-    ["Driving"] = "Nitro, jumps, drifts and a car that won't break.",
-    ["Carry cars"] = "Aim at a car, grab it with your hands and throw it wherever you want.",
-    ["Superman"] = "Lift the cars around you and throw them at whoever you mark.",
-    ["NPC control"] = "Step into any NPC or animal and move it yourself.",
-    ["Hose"] = "A real fire hose, no truck.",
-    ["Effects"] = "Moon gravity, drunk, fireworks, weather and time. Only you see it.",
-    ["Camera"] = "Freecam to look and mark from afar, night vision and slow motion.",
-    ["Customize"] = "Colors, light or dark mode, corners, animations and the menu key.",
-    ["Saving"] = "Save, export and import your settings.",
-    ["Help"] = "How it all works, step by step.",
+    ["Personaje"] = "Ropa, pelo, cara, tatuajes y atuendos. Con «Fijar mi ropa» el servidor no te la toca.",
+    ["Animaciones"] = "Bailes y animaciones para ti, para un NPC o con alguien.",
+    ["Poderes"] = "Inmortal, supersalto, volar y alguna cosa más.",
+    ["Tuneo"] = "Piezas, pintura, luces y taller del coche en el que vas o el que tengas al lado.",
+    ["Conducción"] = "Nitro, saltos, derrapes y un coche que no se rompe.",
+    ["Cargar coches"] = "Apunta a un coche, cógelo con las manos y tíralo donde quieras.",
+    ["Superman"] = "Levanta los coches de alrededor y lánzaselos a quien marques.",
+    ["Control de NPCs"] = "Métete en la piel de cualquier NPC o animal y muévelo tú.",
+    ["Manguera"] = "Una manguera de bomberos de verdad, sin camión.",
+    ["Efectos"] = "Gravedad lunar, borracho, fuegos artificiales, clima y hora. Solo lo ves tú.",
+    ["Cámara"] = "Freecam para mirar y marcar desde lejos, visión nocturna y cámara lenta.",
+    ["Personalizar"] = "Colores, modo claro u oscuro, esquinas, animaciones y la tecla del menú.",
+    ["Guardado"] = "Guardar, exportar e importar tus ajustes.",
+    ["Ayuda"] = "Cómo va todo, paso a paso.",
 }
 
 -- Apartados de la barra lateral
 UI.apartados = {
-    { id = "personal", nombre = "Personal", icono = "personal", secciones = { "Character", "Animations", "Powers" } },
-    { id = "vehiculos", nombre = "Vehicles", icono = "vehiculos", secciones = { "Tuning", "Driving", "Carry cars", "Superman" } },
-    { id = "mundo", nombre = "World", icono = "mundo", secciones = { "NPC control", "Hose", "Effects", "Camera" } },
-    { id = "ajustes", nombre = "Settings", icono = "ajustes", secciones = { "Customize", "Saving", "Help" } },
+    { id = "personal", nombre = "Personal", icono = "personal", secciones = { "Personaje", "Animaciones", "Poderes" } },
+    { id = "vehiculos", nombre = "Vehículos", icono = "vehiculos", secciones = { "Tuneo", "Conducción", "Cargar coches", "Superman" } },
+    { id = "mundo", nombre = "Mundo", icono = "mundo", secciones = { "Control de NPCs", "Manguera", "Efectos", "Cámara" } },
+    { id = "ajustes", nombre = "Ajustes", icono = "ajustes", secciones = { "Personalizar", "Guardado", "Ayuda" } },
 }
 
 UI.novedades = {
-    { "v11.5", "English, smoother, freecam tools", {
-        "The whole menu is now in English.",
-        "Sidebar sections fold and unfold with a click; the selection, tabs and focus slide smoothly.",
-        "Closing with the menu key fades everything together, icons included.",
-        "Freecam tools on the mouse wheel: copy clothes, bring me here, grab car and fireworks.",
-        "Marked people get a box around their whole body instead of a ring at their feet.",
-        "Search without examples." } },
     { "v11.4", "Surge", {
-        "New name and logo. The menu is now black and white, flat and lighter.",
-        "A real color picker: square, hue, transparency, hex code and paste. For the car, the arrows, the outline and the accent.",
-        "Each option's key sits next to it: click and press yours. You can set one on any switch or button.",
-        "Customize: colors, corners, opacity, animations and the menu key.",
-        "Immortal now takes everything and the flying pose no longer changes." } },
-    { "v11.3", "Sections and fun mode", {
-        "Powers: immortal, super jump, fly, fast run and swim, no police and more.",
-        "Driving: nitro, jump, drifts and an indestructible car.",
-        "Effects: slow motion, drunk, moon gravity, weather, time and fireworks." } },
-    { "v11.2", "The menu is a page", { "Search up top (Ctrl+F) and, next to each option, what it does and its default." } },
-    { "v11.1", "Freecam", { "You fly with the camera and mark and grab cars from there." } },
-    { "v10.12", "Superman refined", { "Only grabs free cars and searches up to 1000 m." } },
-    { "v10.8", "Uniforms", { "Police, mechanic and paramedic." } },
-    { "v10.7", "Full clothes copy", { "Backpack, face, eyes and walk included." } },
-    { "v10.5", "Lock my clothes", { "What you take off stays off and tattoos don't disappear." } },
+        "Nuevo nombre y logo. El menú ahora es en blanco y negro, plano y más ligero.",
+        "Selector de color de verdad: cuadro, tono, transparencia, código hex y pegar. Para el coche, las flechas, el contorno y el acento.",
+        "La tecla de cada opción va a su lado: clic y pulsa la tuya. A cualquier interruptor o botón le puedes poner una.",
+        "Personalizar: colores, esquinas, opacidad, animaciones y la tecla del menú.",
+        "Inmortal ya aguanta todo y al volar la postura no cambia." } },
+    { "v11.3", "Apartados y modo diversión", {
+        "Poderes: inmortal, supersalto, volar, correr y nadar rápido, sin policía y más.",
+        "Conducción: nitro, salto, derrapes y coche indestructible.",
+        "Efectos: cámara lenta, borracho, gravedad lunar, clima, hora y fuegos artificiales." } },
+    { "v11.2", "El menú es una página", { "Buscador arriba (Ctrl+F) y al lado de cada opción qué hace y cómo venía de serie." } },
+    { "v11.1", "Freecam", { "Vuelas con la cámara y desde ahí marcas y coges coches." } },
+    { "v10.12", "Superman afinado", { "Solo coge coches libres y busca hasta 1000 m." } },
+    { "v10.8", "Uniformes", { "Policía, mecánico y médico." } },
+    { "v10.7", "Copiar ropa completa", { "Mochila, cara, ojos y forma de andar incluidos." } },
+    { "v10.5", "Fijar mi ropa", { "Lo que te quitas se queda quitado y los tatuajes no se van." } },
 }
 
 UI.consejos = {
-    "Ctrl+F and search for anything.",
-    "The keyboard icon next to an option: click, press a key and it's on hand.",
-    "With the freecam you mark anyone with the wheel click.",
-    "Hover an option and on the right you see what it does.",
-    "The top bar drags to move the menu.",
-    "Shift + arrows: values move in 10s.",
-    "In Character, «Lock my clothes» and the server changes nothing.",
-    "Esc takes you back until the menu closes.",
-    "In Customize you give the menu square corners or a color.",
+    "Ctrl+F y buscas cualquier cosa.",
+    "El icono de teclado al lado de una opción: clic, pulsa una tecla y ya la tienes a mano.",
+    "Con la freecam marcas a quien quieras con el clic de la rueda.",
+    "Pasa el ratón por una opción y a la derecha ves qué hace.",
+    "La barra de arriba se arrastra para mover el menú.",
+    "Shift + flechas: los valores van de 10 en 10.",
+    "En Personaje, «Fijar mi ropa» y el servidor no te cambia nada.",
+    "Esc te lleva atrás hasta cerrar el menú.",
+    "En Personalizar pones el menú con esquinas rectas o le das color.",
 }
 
 -- Teclas que salen en el Inicio
-UI.teclasInicio = { { "menu", "menu" }, { "freecam", "freecam" }, { "volar", "fly" }, { "agarrar", "grab car" },
+UI.teclasInicio = { { "menu", "menú" }, { "freecam", "freecam" }, { "volar", "volar" }, { "agarrar", "coger coche" },
                     { "superRecoger", "Superman" } }
 
 -- Campo del buscador (usa la misma escritura que los demás campos: teclado de Susano)
-UI.campoBusqueda = { tipo = "campo", label = "Search", max = 40,
+UI.campoBusqueda = { tipo = "campo", label = "Buscar", max = 40,
     get = function() return Menu.busqueda or "" end,
     set = function(v) Menu.busqueda = v; Menu.pagina = "buscar"; Menu.scrollObj = 0 end,
     alEnter = function() local r = R.Resultados()[1]; if r then R.AbrirResultado(r) end end }
@@ -11818,18 +11604,6 @@ function R.Chevron(cx, cy, abajo, c, a)
         R.Linea(cx - 2, cy - 4, cx + 2, cy, c[1], c[2], c[3], a, 1.6)
         R.Linea(cx + 2, cy, cx - 2, cy + 4, c[1], c[2], c[3], a, 1.6)
     end
-end
-
--- Flecha que gira de › (t=0, cerrado) a ⌄ (t=1, abierto)
-function R.ChevronGiro(cx, cy, t, c, a)
-    local ang = -math.pi / 2 + (math.pi / 2) * Clamp(t, 0, 1)   -- de apuntar a la derecha a apuntar abajo
-    local co, si = math.cos(ang), math.sin(ang)
-    local function P(dx, dy) return cx + dx * co - dy * si, cy + dx * si + dy * co end
-    local ax, ay = P(-4, -3)
-    local bx, by = P(0, 1)
-    local dx, dy = P(4, -3)
-    R.Linea(ax, ay, bx, by, c[1], c[2], c[3], a, 1.6)
-    R.Linea(bx, by, dx, dy, c[1], c[2], c[3], a, 1.6)
 end
 
 -- Botón con texto: estilos "acento" (relleno), "borde" y "suave"
@@ -11925,7 +11699,7 @@ end
 function R.CambiarTema()
     Config.tema = (Config.tema == 2) and 1 or 2
     Guardado.pendiente = true
-    Avisar(Config.tema == 2 and "Light mode" or "Dark mode")
+    Avisar(Config.tema == 2 and "Modo claro" or "Modo oscuro")
 end
 function R.EmpezarBusqueda()
     Menu.pagina, Menu.col = "buscar", 0
@@ -11933,6 +11707,7 @@ function R.EmpezarBusqueda()
     Menu.escribiendo = UI.campoBusqueda
 end
 function R.LimpiarBusqueda() Menu.busqueda = ""; UI.cacheBusq = nil end
+function R.Sugerencia(h) Menu.busqueda = h.dato; UI.cacheBusq = nil; Menu.escribiendo = UI.campoBusqueda end
 function R.OtroConsejo() UI.consejoExtra = (UI.consejoExtra or 0) + 1 end
 function R.IndiceSeccion(nombre)
     UI.idxSec = UI.idxSec or {}
@@ -11974,7 +11749,7 @@ end
 -- h: la zona clicada (dato = opción) o la propia opción (fila de tecla)
 function R.PedirTecla(h)
     local it = (h.tipo == "boton") and h.dato or h
-    local E = { label = Texto(it.label) or "Option" }
+    local E = { label = Texto(it.label) or "Opción" }
     if it.bind then E.bind = it.bind
     elseif it.bindId then E.bind = Teclas.BindDe(it.bindId)
     else E.atajo = Teclas.IdAtajo(it) end
@@ -12001,9 +11776,9 @@ function R.Resultados()
             local doc = UI.docSeccion[s.nombre] or ""
             local ns = R.Normalizar(s.nombre)
             if ns:find(q, 1, true) then
-                res[#res + 1] = { puntos = 100, sec = si, titulo = s.nombre, desc = doc, tipo = "Section" }
+                res[#res + 1] = { puntos = 100, sec = si, titulo = s.nombre, desc = doc, tipo = "Sección" }
             elseif R.Normalizar(doc):find(q, 1, true) then
-                res[#res + 1] = { puntos = 35, sec = si, titulo = s.nombre, desc = doc, tipo = "Section" }
+                res[#res + 1] = { puntos = 35, sec = si, titulo = s.nombre, desc = doc, tipo = "Sección" }
             end
             for pi, p in ipairs(s.paneles) do
                 -- los paneles que cambian según la categoría se buscan abajo, categoría por categoría
@@ -12023,7 +11798,7 @@ function R.Resultados()
                     elseif d ~= "" and R.Normalizar(d):find(q, 1, true) then pts = 40 end
                     if pts > 0 and lab ~= "" then
                         res[#res + 1] = { puntos = sel and pts or pts - 20, sec = si, panel = sel and pi or nil, pos = sel and n or nil,
-                            titulo = lab, desc = d, tipo = UI.TIPOS[it.tipo] or "Option" }
+                            titulo = lab, desc = d, tipo = UI.TIPOS[it.tipo] or "Opción" }
                     end
                 end
             end
@@ -12077,16 +11852,16 @@ function R.FormatoSlider(it, v)
 end
 function R.ValorTexto(it)
     local t = it.tipo
-    if t == "toggle" then return Leer(it) and "Enabled" or "Disabled"
+    if t == "toggle" then return Leer(it) and "Activado" or "Desactivado"
     elseif t == "slider" then return R.FormatoSlider(it, Leer(it) or Minimo(it))
     elseif t == "lista" then local i = floor(Leer(it) or 1); return it.opciones[i] or "?"
     elseif t == "bind" then return NombreTecla(it.bind.tecla)
     elseif t == "color" then
-        if it.auto and Config[it.key] == "" then return "Automatic" end
+        if it.auto and Config[it.key] == "" then return "Automático" end
         local r, g, b, a = R.LeerColor(it)
         return "#" .. Colores.AHex(r, g, b, a):sub(1, it.alfa and 8 or 6)
-    elseif t == "campo" then local v = it.get and it.get() or ""; return v ~= "" and v or "(empty)"
-    elseif t == "cat" then return (it.activo and it.activo()) and "Open" or "Closed"
+    elseif t == "campo" then local v = it.get and it.get() or ""; return v ~= "" and v or "(vacío)"
+    elseif t == "cat" then return (it.activo and it.activo()) and "Abierta" or "Cerrada"
     end
     return "-"
 end
@@ -12099,12 +11874,12 @@ function R.Defecto(it)
     if it.tipo == "color" and it.key then
         local d = Guardado.defecto and Guardado.defecto[it.key]
         if d == nil then return nil end
-        return d, (d == "") and "Automatic" or ("#" .. d:sub(1, it.alfa and 8 or 6))
+        return d, (d == "") and "Automático" or ("#" .. d:sub(1, it.alfa and 8 or 6))
     end
     if not it.key or it.get then return nil end
     local d = Guardado.defecto and Guardado.defecto[it.key]
     if d == nil then return nil end
-    if it.tipo == "toggle" then return d, d and "Enabled" or "Disabled"
+    if it.tipo == "toggle" then return d, d and "Activado" or "Desactivado"
     elseif it.tipo == "slider" then return d, R.FormatoSlider(it, d)
     elseif it.tipo == "lista" then return d, it.opciones[d] or tostring(d) end
     return nil
@@ -12121,7 +11896,7 @@ function R.Restablecer(h)
     if it.tipo == "bind" then it.bind.tecla = d; Guardado.pendiente = true
     elseif it.tipo == "color" then Config[it.key] = d; Guardado.pendiente = true
     else Escribir(it, d) end
-    Avisar((Texto(it.label) or "Option") .. ": back to default")
+    Avisar((Texto(it.label) or "Opción") .. ": como venía")
 end
 
 -- ═════════════════════════════════════════════════════════
@@ -12189,20 +11964,20 @@ function R.PegarColor()
     if not P then return end
     local ok, txt = pcall(function() return Susano.GetClipboardText() end)
     local r, g, b, a = Colores.Leer(ok and txt or nil)
-    if not r then Avisar("There's no color in the clipboard (for example #C13A3A)"); return end
+    if not r then Avisar("En el portapapeles no hay un color (por ejemplo #C13A3A)"); return end
     R.PonerColor(r, g, b, P.it.alfa and a or 255)
     R.ColorAplicar(true)
-    Avisar("Color pasted")
+    Avisar("Color pegado")
 end
 function R.CopiarColor()
     local P = Menu.picker
     if not P then return end
-    if type(Susano) ~= "table" or type(Susano.CopyToClipboard) ~= "function" then Avisar("Your Susano has no clipboard"); return end
+    if type(Susano) ~= "table" or type(Susano.CopyToClipboard) ~= "function" then Avisar("Tu Susano no tiene portapapeles"); return end
     pcall(Susano.CopyToClipboard, "#" .. P.hex)
-    Avisar("Copied: #" .. P.hex)
+    Avisar("Copiado: #" .. P.hex)
 end
 function R.EscribirHex() Menu.escribiendo = UI.campoHex; Teclas.Instantanea() end
-UI.campoHex = { tipo = "campo", label = "Code", max = 8,
+UI.campoHex = { tipo = "campo", label = "Código", max = 8,
     get = function() return Menu.picker and Menu.picker.hex or "" end,
     set = function(t)
         local P = Menu.picker
@@ -12314,7 +12089,7 @@ function R.Buscador(x, y, w, h, A)
     local q = Menu.busqueda or ""
     local maxw = w - 120
     if q == "" and not escribiendo then
-        R.Text(x + 38, y + (h - 19) / 2, "Search Surge", 14, G[1], G[2], G[3], 1)
+        R.Text(x + 38, y + (h - 19) / 2, "Busca: ropa, volar, nitro, color…", 14, G[1], G[2], G[3], 1)
     else
         if UI.bqEn ~= q or UI.bqMax ~= maxw then
             local m = q
@@ -12350,12 +12125,12 @@ function R.Docs(px, py, pw, ph, A, s)
 
     local E = Menu.esperandoTecla
     if E then
-        R.Text(xx, yy, "New key", 12, G[1], G[2], G[3], 1, false, "negrita")
+        R.Text(xx, yy, "Tecla nueva", 12, G[1], G[2], G[3], 1, false, "negrita")
         yy = yy + 26
         if UI.docE ~= E then
             UI.docE = E
-            UI.docEtxt = "Press the key you want for «" .. (E.label or "") .. "»."
-            UI.docEayuda = "Esc or a click cancels. Del or Backspace " .. (E.atajo and "removes it." or "resets it.")
+            UI.docEtxt = "Pulsa la tecla que quieras para «" .. (E.label or "") .. "»."
+            UI.docEayuda = "Esc o un clic cancela. Supr o Retroceso " .. (E.atajo and "la quitan." or "la dejan como venía.")
         end
         yy = yy + R.Parrafo(xx, yy, UI.docEtxt, 16, ww, T1, 1, 23, 4, "negrita") + 12
         R.Parrafo(xx, yy, UI.docEayuda, 13, ww, G, 1, 19, 4)
@@ -12365,54 +12140,54 @@ function R.Docs(px, py, pw, ph, A, s)
     local it = (Menu.col > 0 and Config.descripciones) and ItemFoco() or nil
     if not it then
         -- Sin opción señalada: qué es la sección
-        R.Text(xx, yy, "Section", 12, G[1], G[2], G[3], 1, false, "negrita")
+        R.Text(xx, yy, "Sección", 12, G[1], G[2], G[3], 1, false, "negrita")
         R.Text(xx, yy + 22, s.nombre, 18, T1[1], T1[2], T1[3], 1, false, "negrita")
         yy = yy + 56
-        yy = yy + R.Parrafo(xx, yy, UI.docSeccion[s.nombre] or "Pick an option.", 14, ww, T2, 1, 21, 9) + 18
+        yy = yy + R.Parrafo(xx, yy, UI.docSeccion[s.nombre] or "Elige una opción.", 14, ww, T2, 1, 21, 9) + 18
         if yy < limite - 60 then
-            R.Parrafo(xx, yy, "Hover an option and you'll see here what it does. An option's keyboard icon sets its key.",
+            R.Parrafo(xx, yy, "Pasa el ratón por una opción y aquí verás qué hace. El icono de teclado de una opción le pone tecla.",
                 13, ww, G, 1, 19, 4)
         end
         return
     end
 
     -- Opción señalada
-    R.Text(xx, yy, UI.TIPOS[it.tipo] or "Option", 12, G[1], G[2], G[3], 1, false, "negrita")
+    R.Text(xx, yy, UI.TIPOS[it.tipo] or "Opción", 12, G[1], G[2], G[3], 1, false, "negrita")
     yy = yy + 24
     yy = yy + R.Parrafo(xx, yy, Texto(it.label) or "", 18, ww, T1, 1, 25, 3, "negrita") + 8
     local d = it.desc
     if type(d) == "function" then local ok, v = pcall(d); d = ok and v or nil end
-    if type(d) ~= "string" or d == "" then d = "No more info." end
+    if type(d) ~= "string" or d == "" then d = "Sin más info." end
     local maxL = max(2, floor((limite - 180 - yy) / 21))
     yy = yy + R.Parrafo(xx, yy, d, 14, ww, T2, 1, 21, maxL) + 16
 
     R.Rect(xx, yy, ww, 1, Cp[1], Cp[2], Cp[3], UI.lineaA * 1.6)
     yy = yy + 16
-    yy = R.FilaInfo(xx, yy, ww, "Now", R.ValorTexto(it))
+    yy = R.FilaInfo(xx, yy, ww, "Ahora", R.ValorTexto(it))
     if it.tipo == "slider" then
         if it._rango ~= it then
             it._rango = it
-            it._rangoTxt = R.FormatoSlider(it, Minimo(it)) .. "  to  " .. R.FormatoSlider(it, Maximo(it))
+            it._rangoTxt = R.FormatoSlider(it, Minimo(it)) .. "  a  " .. R.FormatoSlider(it, Maximo(it))
         end
-        yy = R.FilaInfo(xx, yy, ww, "Range", it._rangoTxt)
+        yy = R.FilaInfo(xx, yy, ww, "Rango", it._rangoTxt)
     elseif it.tipo == "lista" then
-        yy = R.FilaInfo(xx, yy, ww, "Options", tostring(#it.opciones))
+        yy = R.FilaInfo(xx, yy, ww, "Opciones", tostring(#it.opciones))
     end
     -- tecla de la opción
     local tecla
     if it.bindId then local b = Teclas.BindDe(it.bindId); tecla = b and NombreTecla(b.tecla)
-    elseif Teclas.IdAtajo(it) then local k = Teclas.atajos[Teclas.IdAtajo(it)]; tecla = k and NombreTecla(k) or "None" end
-    if tecla then yy = R.FilaInfo(xx, yy, ww, "Key", tecla) end
+    elseif Teclas.IdAtajo(it) then local k = Teclas.atajos[Teclas.IdAtajo(it)]; tecla = k and NombreTecla(k) or "Ninguna" end
+    if tecla then yy = R.FilaInfo(xx, yy, ww, "Tecla", tecla) end
     local def, defTxt = R.Defecto(it)
     if defTxt and yy < limite - 30 then
-        yy = R.FilaInfo(xx, yy, ww, "Default", defTxt) + 8
+        yy = R.FilaInfo(xx, yy, ww, "De serie", defTxt) + 8
         if R.ValorActual(it) ~= def and yy + 34 <= limite then
-            R.Boton(xx, yy, ww, 34, "Reset to default", "borde", A, R.Restablecer, it)
+            R.Boton(xx, yy, ww, 34, "Dejar como venía", "borde", A, R.Restablecer, it)
             yy = yy + 44
         end
     end
     if it.tipo == "color" and yy + 34 <= limite then
-        R.Boton(xx, yy, ww, 34, "Open the picker", "suave", A, R.AbrirColorHit, it)
+        R.Boton(xx, yy, ww, 34, "Abrir el selector", "suave", A, R.AbrirColorHit, it)
     end
 end
 function R.AbrirColorHit(h) R.AbrirColor(h.dato) end
@@ -12427,15 +12202,15 @@ function R.PagInicio(cx, y0, cw, A)
         UI.proxSaludo = ahora + 1000
         local ok, nombre = pcall(GetPlayerName, PlayerId())
         nombre = (ok and type(nombre) == "string" and nombre ~= "") and nombre or "crack"
-        if nombre ~= UI.nombreJ then UI.nombreJ, UI.saludo = nombre, "Hey, " .. nombre end
+        if nombre ~= UI.nombreJ then UI.nombreJ, UI.saludo = nombre, "Buenas, " .. nombre end
     end
     R.Text(cx, yy, UI.saludo, 26, T1[1], T1[2], T1[3], 1, false, "titulo")
     yy = yy + 42
-    R.Text(cx, yy, "Pick a section or search for anything with Ctrl F.", 14, T2[1], T2[2], T2[3], 1)
+    R.Text(cx, yy, "Elige un apartado o busca lo que quieras con Ctrl F.", 14, T2[1], T2[2], T2[3], 1)
     yy = yy + 46
 
     -- Ahora mismo (clic para encender o apagar)
-    R.Text(cx, yy, "Right now", 13, G[1], G[2], G[3], 1, false, "negrita")
+    R.Text(cx, yy, "Ahora mismo", 13, G[1], G[2], G[3], 1, false, "negrita")
     yy = yy + 26
     local estados = UI.estados
     if not estados then
@@ -12447,13 +12222,13 @@ function R.PagInicio(cx, y0, cw, A)
             end
         end
         estados = {
-            { "Carry cars", function() return Config.activado end, Alternar("activado", "Carry cars on", "Carry cars off") },
-            { "Fly", function() return Config.volar end, Alternar("volar", "Flying", "Landing") },
-            { "Immortal", function() return Config.inmortal end, Alternar("inmortal", "Immortal", "No longer immortal") },
+            { "Cargar coches", function() return Config.activado end, Alternar("activado", "Cargar coches activado", "Cargar coches apagado") },
+            { "Volar", function() return Config.volar end, Alternar("volar", "A volar", "Aterrizando") },
+            { "Inmortal", function() return Config.inmortal end, Alternar("inmortal", "Inmortal", "Ya no eres inmortal") },
             { "Freecam", function() return Cam.activa end, function() Cam.Alternar() end },
-            { "Superman", function() return Config.superman end, Alternar("superman", "Superman ready", "Superman off") },
-            { "Clothes locked", function() return Ropa.fijar end, function()
-                local si = R.IndiceSeccion("Character")
+            { "Superman", function() return Config.superman end, Alternar("superman", "Superman listo", "Superman apagado") },
+            { "Ropa fija", function() return Ropa.fijar end, function()
+                local si = R.IndiceSeccion("Personaje")
                 if si then CambiarSeccion(si); Menu.col = 0 end
             end },
         }
@@ -12498,7 +12273,7 @@ function R.PagInicio(cx, y0, cw, A)
     -- Teclas
     R.Rect(cx, yy, cw, 1, Cp[1], Cp[2], Cp[3], 0.14)
     yy = yy + 18
-    R.Text(cx, yy + 2, "Keys", 13, G[1], G[2], G[3], 1, false, "negrita")
+    R.Text(cx, yy + 2, "Teclas", 13, G[1], G[2], G[3], 1, false, "negrita")
     local ax = cx + 80
     for _, at in ipairs(UI.teclasInicio) do
         local tk = NombreTecla(TeclaDe(at[1]))
@@ -12515,13 +12290,13 @@ function R.PagInicio(cx, y0, cw, A)
     R.Rect(cx, yy, cw, 1, Cp[1], Cp[2], Cp[3], 0.14)
     yy = yy + 20
     local w2 = (cw - 40) / 2
-    R.Text(cx, yy, "Tip", 13, G[1], G[2], G[3], 1, false, "negrita")
+    R.Text(cx, yy, "Truco", 13, G[1], G[2], G[3], 1, false, "negrita")
     local nC = #UI.consejos
     local iC = (floor(GetGameTimer() / 8000) + (UI.consejoExtra or 0)) % nC + 1
     R.Parrafo(cx, yy + 26, UI.consejos[iC], 15, w2, T1, 1, 23, 3)
-    R.Enlace(cx, yy + 104, "Another tip  ›", 13, "negrita", R.OtroConsejo, nil, T2, T1)
+    R.Enlace(cx, yy + 104, "Otro truco  ›", 13, "negrita", R.OtroConsejo, nil, T2, T1)
     local nx = cx + w2 + 40
-    R.Text(nx, yy, "What's new", 13, G[1], G[2], G[3], 1, false, "negrita")
+    R.Text(nx, yy, "Lo nuevo", 13, G[1], G[2], G[3], 1, false, "negrita")
     local ny = yy + 26
     for k = 1, min(3, #UI.novedades) do
         local nv = UI.novedades[k]
@@ -12529,7 +12304,7 @@ function R.PagInicio(cx, y0, cw, A)
         R.Text(nx + 64, ny, Recortar(nv[2], 14, w2 - 64), 14, T1[1], T1[2], T1[3], 1)
         ny = ny + 26
     end
-    R.Enlace(nx, yy + 104, "See all  ›", 13, "negrita", R.IrNovedades, nil, T2, T1)
+    R.Enlace(nx, yy + 104, "Ver todo  ›", 13, "negrita", R.IrNovedades, nil, T2, T1)
     yy = yy + 140
 
     -- Pie
@@ -12537,31 +12312,41 @@ function R.PagInicio(cx, y0, cw, A)
     yy = yy + 16
     R.Text(cx, yy, "Surge " .. VERSION, 13, G[1], G[2], G[3], 1)
     local km = K("menu")
-    if UI.pieK ~= km then UI.pieK = km; UI.pie = km .. " opens and closes   ·   Ctrl+F search   ·   Esc back" end
+    if UI.pieK ~= km then UI.pieK = km; UI.pie = km .. " abre y cierra   ·   Ctrl+F buscar   ·   Esc atrás" end
     R.Text(cx + cw - Ancho(UI.pie, 13), yy, UI.pie, 13, G[1], G[2], G[3], 1)
     return yy + 40 - y0
 end
 
 -- ── Página: Buscar ──
+UI.sugerencias = { "ropa", "volar", "nitro", "color", "superman", "tatuajes", "clima", "marcar", "inmortal", "freecam" }
 function R.PagBuscar(cx, y0, cw, A)
     local Cp, T1, T2, G = UI.capa, UI.texto, UI.texto2, UI.gris
     local yy = y0
-    R.Text(cx, yy, "Search", 26, T1[1], T1[2], T1[3], 1, false, "titulo")
+    R.Text(cx, yy, "Buscar", 26, T1[1], T1[2], T1[3], 1, false, "titulo")
     yy = yy + 48
     local q = Menu.busqueda or ""
     if q:gsub("%s", "") == "" then
-        yy = yy + R.Parrafo(cx, yy, "Type above the name of an option, a section or what it does. Enter opens the first result.", 15, cw, T2, 1, 22, 3)
+        yy = yy + R.Parrafo(cx, yy, "Escribe arriba y te digo dónde está. Enter abre el primero.", 15, cw, T2, 1, 22, 3) + 22
+        R.Text(cx, yy, "Prueba con", 13, G[1], G[2], G[3], 1, false, "negrita")
+        yy = yy + 30
+        local xx = cx
+        for _, sgr in ipairs(UI.sugerencias) do
+            local w = Ancho(sgr, 14, "negrita") + 30
+            if xx + w > cx + cw then xx = cx; yy = yy + 44 end
+            R.Boton(xx, yy, w, 34, sgr, "borde", A, R.Sugerencia, sgr)
+            xx = xx + w + 8
+        end
         return yy + 60 - y0
     end
     local res = R.Resultados()
     if UI.bqTitQ ~= q or UI.bqTitN ~= #res then
         UI.bqTitQ, UI.bqTitN = q, #res
-        UI.bqTit = #res .. (#res == 1 and " result" or " results") .. " for «" .. q .. "»"
+        UI.bqTit = #res .. (#res == 1 and " resultado" or " resultados") .. " para «" .. q .. "»"
     end
     R.Text(cx, yy, UI.bqTit, 14, G[1], G[2], G[3], 1)
     yy = yy + 32
     if #res == 0 then
-        R.Text(cx, yy, "Nothing here. Try another word.", 15, T1[1], T1[2], T1[3], 0.9)
+        R.Text(cx, yy, "Nada por aquí. Prueba con otra palabra.", 15, T1[1], T1[2], T1[3], 0.9)
         return yy + 60 - y0
     end
     R.Rect(cx, yy, cw, 1, Cp[1], Cp[2], Cp[3], UI.lineaA * 1.6)
@@ -12592,9 +12377,9 @@ end
 function R.PagNovedades(cx, y0, cw, A)
     local Cp, T1, T2, G = UI.capa, UI.texto, UI.texto2, UI.gris
     local yy = y0
-    R.Text(cx, yy, "What's new", 26, T1[1], T1[2], T1[3], 1, false, "titulo")
+    R.Text(cx, yy, "Novedades", 26, T1[1], T1[2], T1[3], 1, false, "titulo")
     yy = yy + 44
-    R.Text(cx, yy, "The latest things we touched.", 14, T2[1], T2[2], T2[3], 1)
+    R.Text(cx, yy, "Lo último que hemos tocado.", 14, T2[1], T2[2], T2[3], 1)
     yy = yy + 40
     for k, n in ipairs(UI.novedades) do
         R.Rect(cx, yy, cw, 1, Cp[1], Cp[2], Cp[3], UI.lineaA * 1.6)
@@ -12619,7 +12404,7 @@ function R.PagSeccion(x, y, W, H, cx, ty, cw, A)
     local ap, api = R.ApartadoDe(Menu.seccion)
     if ap then UI.ultimaDe = UI.ultimaDe or {}; UI.ultimaDe[ap.id] = Menu.seccion end
     -- migas de pan: Inicio / Apartado / Sección
-    local mx = cx + R.Enlace(cx, ty, "Home", 12, nil, R.IrInicio, nil, G, T1)
+    local mx = cx + R.Enlace(cx, ty, "Inicio", 12, nil, R.IrInicio, nil, G, T1)
     if ap then
         R.Text(mx + 8, ty, "/", 12, G[1], G[2], G[3], 0.7)
         mx = mx + 20 + R.Enlace(mx + 20, ty, ap.nombre, 12, nil, R.AbrirApartado, api, G, T1)
@@ -12639,7 +12424,6 @@ function R.PagSeccion(x, y, W, H, cx, ty, cw, A)
     R.Rect(cx, tby + 34, cw, 1, Cp[1], Cp[2], Cp[3], UI.lineaA * 1.6)
     if ap then
         local px = cx
-        local actX, actW
         for _, nom in ipairs(ap.secciones) do
             local si = R.IndiceSeccion(nom)
             if si then
@@ -12651,19 +12435,10 @@ function R.PagSeccion(x, y, W, H, cx, ty, cw, A)
                 Icono(Secciones[si].icono, px + 8, tby + 15, 16, fuerte and 1 or 0.5)
                 local c = fuerte and T1 or G
                 R.Text(px + 24, tby + 5, nom, 14, c[1], c[2], c[3], 1, false, est)
-                if activa then actX, actW = px, w - 2 end
+                if activa then R.Rect(px, tby + 33, w - 2, 2, A[1], A[2], A[3], 1) end
                 R.Hit(px, tby, w, 34, R.IrSeccion, si)
                 px = px + w + 22
             end
-        end
-        -- subrayado que se desliza de una pestaña a otra
-        if actX then
-            local U = UI.tabU
-            if not U or U.sec ~= Menu.seccion and not U.x then U = { x = actX, w = actW } end
-            if not U.x then U = { x = actX, w = actW } end
-            UI.tabU = U
-            U.x, U.w = Suave(U.x, actX, 24), Suave(U.w, actW, 24)
-            R.Rect(U.x, tby + 33, U.w, 2, A[1], A[2], A[3], 1)
         end
     end
 
@@ -12675,122 +12450,28 @@ function R.PagSeccion(x, y, W, H, cx, ty, cw, A)
     local wp = cw - wd - (wd > 0 and gap or 0)
     local p1, p2 = s.paneles[1], s.paneles[2]
     local w1 = p2 and floor((wp - gap) * 0.48) or wp
-    local ffx, ffy, ffw, ffh
     if p1 then
-        local fx, fy, fw, fh = DibujarPanel(p1, 1, cx, py, w1, A, Menu.pos[1])
-        if Menu.col == 1 then ffx, ffy, ffw, ffh = fx, fy, fw, fh end
-        if p2 then
-            fx, fy, fw, fh = DibujarPanel(p2, 2, cx + w1 + gap, py, wp - gap - w1, A, Menu.pos[2])
-            if Menu.col == 2 then ffx, ffy, ffw, ffh = fx, fy, fw, fh end
-        end
-    end
-    -- marca del foco del teclado, deslizándose entre opciones
-    if ffx and ffh then
-        local F = Anim.foco
-        if not F then F = { x = ffx, y = ffy, h = ffh }; Anim.foco = F end
-        F.x, F.y, F.h = Suave(F.x, ffx, 26), Suave(F.y, ffy, 26), Suave(F.h, ffh, 26)
-        R.Rect(F.x - 1, F.y + 4, 2, F.h - 8, A[1], A[2], A[3], 1)
-    else
-        Anim.foco = nil
+        DibujarPanel(p1, 1, cx, py, w1, A, Menu.pos[1])
+        if p2 then DibujarPanel(p2, 2, cx + w1 + gap, py, wp - gap - w1, A, Menu.pos[2]) end
     end
     if wd > 0 then R.Docs(cx + wp + gap, py, wd, altoDisp, A, s) end
     return altoDisp + 120
 end
 
--- ── Barra lateral ─────────────────────────────────────────
--- Los apartados se pliegan y despliegan con un clic (animado). La selección activa
--- se desliza. Clic en un apartado: lo abre (y entra en él); clic otra vez: lo pliega.
-UI.exp, UI.expA = {}, {}      -- desplegado (objetivo 0/1) y su valor animado por apartado
-function R.ApartadoToggle(h)
-    local a = UI.apartados[h.dato]
-    local abierto = not UI.exp[a.id]
-    UI.exp[a.id] = abierto                         -- false se queda plegado aunque sea el apartado abierto
-    if abierto then R.AbrirApartado(h.dato) end    -- al abrirlo, entra en su última sección
-end
--- Fila simple de la barra (Inicio, Novedades, modo). Devuelve la y siguiente.
-function R.FilaLateral(x, ny, LW, icono, txt, activa, fn)
+-- ── Barra lateral: una entrada (estado 2 = abierta, 1 = apartado desplegado, 0 = normal) ──
+function R.EntradaLateral(x, ny, LW, icono, txt, estado, fn, dato, flecha)
     local ex, ew = x + 12, LW - 24
-    local enc = R.Encima(ex, ny, ew, 36)
+    local enc = R.Encima(ex, ny, ew, 34)
     local Cp, T1, T2 = UI.capa, UI.texto, UI.texto2
-    if enc and not activa then R.Rect(ex, ny, ew, 36, Cp[1], Cp[2], Cp[3], 0.04, 7) end
-    local fuerte = activa or enc
-    Icono(icono, ex + 18, ny + 18, 18, fuerte and 1 or 0.7)
+    if estado == 2 then R.Rect(ex, ny, ew, 34, Cp[1], Cp[2], Cp[3], 0.08, 6)
+    elseif enc then R.Rect(ex, ny, ew, 34, Cp[1], Cp[2], Cp[3], 0.045, 6) end
+    local fuerte = estado > 0 or enc
+    Icono(icono, ex + 18, ny + 17, 18, fuerte and 1 or 0.72)
     local c = fuerte and T1 or T2
-    R.Text(ex + 40, ny + 9, txt, 14, c[1], c[2], c[3], 1, false, activa and "negrita" or nil)
-    R.Hit(ex, ny, ew, 36, fn)
-    return ny + 38, (activa and ny or nil)
-end
-
--- Dibuja toda la barra lateral y devuelve la y del resaltado activo (para deslizarlo)
-function R.BarraLateral(x, y, LW, H, A)
-    local Cp, T1, T2, G = UI.capa, UI.texto, UI.texto2, UI.gris
-    local ex, ew = x + 12, LW - 24
-    local pag = Menu.pagina
-    local activaY
-    local ny = y + 112
-    local yy
-    ny, yy = R.FilaLateral(x, ny, LW, "inicio", "Home", pag == "inicio", R.IrInicio); activaY = yy or activaY
-    ny, yy = R.FilaLateral(x, ny, LW, "novedades", "What's new", pag == "novedades", R.IrNovedades); activaY = yy or activaY
-    ny = ny + 10
-    R.Rect(x + 20, ny, LW - 40, 1, Cp[1], Cp[2], Cp[3], UI.lineaA * 1.6)
-    ny = ny + 16
-    R.Text(x + 24, ny, "SECTIONS", 11, G[1], G[2], G[3], 1, false, "negrita")
-    ny = ny + 24
-    local apActual = (pag == "seccion") and select(2, R.ApartadoDe(Menu.seccion)) or nil
-    for ai, a in ipairs(UI.apartados) do
-        -- el apartado de la sección abierta se despliega solo cuando entras en una sección suya
-        -- (si luego lo pliegas con un clic, se queda plegado)
-        if apActual == ai and (UI.exp[a.id] == nil or UI.secExp ~= Menu.seccion) then UI.exp[a.id] = true end
-        local abierto = UI.exp[a.id] == true
-        local obj = abierto and 1 or 0
-        UI.expA[a.id] = UI.expA[a.id] and Suave(UI.expA[a.id], obj, 20) or obj
-        local eA = UI.expA[a.id]
-        -- fila del apartado
-        local enc = R.Encima(ex, ny, ew, 38)
-        local act = apActual == ai
-        if enc and not act then R.Rect(ex, ny, ew, 38, Cp[1], Cp[2], Cp[3], 0.04, 7) end
-        local fuerte = act or enc or abierto
-        Icono(a.icono, ex + 18, ny + 19, 18, fuerte and 1 or 0.7)
-        local c = fuerte and T1 or T2
-        R.Text(ex + 40, ny + 10, a.nombre, 14, c[1], c[2], c[3], 1, false, (act or abierto) and "negrita" or nil)
-        R.ChevronGiro(ex + ew - 16, ny + 19, eA, c, 0.75)
-        R.Hit(ex, ny, ew, 38, R.ApartadoToggle, ai)
-        ny = ny + 40
-        -- sus secciones (altura animada, recortada mientras se abre o cierra)
-        local alto = #a.secciones * 32 + 4
-        local vis = floor(alto * eA + 0.5)
-        if vis > 0 then
-            local rec = R.Clip(x, ny - 2, LW, vis + 2)
-            R.Rect(x + 31, ny, 1, alto - 8, Cp[1], Cp[2], Cp[3], 0.14)
-            local sy = ny
-            for _, nom in ipairs(a.secciones) do
-                local si = R.IndiceSeccion(nom)
-                if si then
-                    local activa = si == Menu.seccion
-                    if activa then activaY = sy - 2 end
-                    local encS = R.Encima(x + 12, sy - 2, ew, 30)
-                    if encS and not activa then R.Rect(x + 12, sy - 2, ew, 30, Cp[1], Cp[2], Cp[3], 0.04, 6) end
-                    local cc = (activa or encS) and T1 or T2
-                    R.Text(x + 48, sy + 3, Recortar(nom, 14, LW - 76, activa and "negrita" or nil), 14, cc[1], cc[2], cc[3], 1, false, activa and "negrita" or nil)
-                    R.Hit(x + 12, sy - 2, ew, 30, R.IrSeccion, si)
-                    sy = sy + 32
-                end
-            end
-            if rec then R.FinClip() end
-            ny = ny + vis + 4
-        end
-    end
-    if pag == "seccion" then UI.secExp = Menu.seccion end
-    -- resaltado activo que se desliza
-    if activaY then
-        local S = UI.sel
-        if not S or not S.v then S = { v = activaY }; UI.sel = S end
-        S.v = Suave(S.v, activaY, 22)
-        R.Rect(ex, S.v, 3, 28, A[1], A[2], A[3], 1, 1.5)
-        R.Rect(ex, S.v - 1, ew, 32, A[1], A[2], A[3], 0.09, 7)
-    else
-        UI.sel = nil
-    end
+    R.Text(ex + 38, ny + 7, txt, 14, c[1], c[2], c[3], 1, false, estado > 0 and "negrita" or nil)
+    if flecha then R.Chevron(ex + ew - 14, ny + 17, flecha == 1, c, 0.8) end
+    R.Hit(ex, ny, ew, 34, fn, dato)
+    return ny + 36
 end
 
 -- ── La página entera ──
@@ -12884,13 +12565,47 @@ local function DibujarMenu(sw, sh)
         local So = UI.sobreA
         R.Rect(bx, by, bw, 36, A[1], A[2], A[3], enc and 1 or 0.92, 8)
         Icono("buscar", bx + 20, by + 18, 16, 1, UI.imgA)
-        R.Text(bx + 36, by + 8, "Search", 14, So[1], So[2], So[3], 1, false, "negrita")
+        R.Text(bx + 36, by + 8, "Buscar", 14, So[1], So[2], So[3], 1, false, "negrita")
         R.Text(bx + bw - 12 - Ancho("Ctrl F", 12), by + 10, "Ctrl F", 12, So[1], So[2], So[3], 0.55)
         R.Hit(bx, by, bw, 36, R.EmpezarBusqueda)
     end
-    local recL = R.Clip(x, y + 104, LW, H - 158)       -- la barra no se sale por abajo
-    R.BarraLateral(x, y, LW, H, A)
-    if recL then R.FinClip() end
+    local ny = y + 112
+    ny = R.EntradaLateral(x, ny, LW, "inicio", "Inicio", pag == "inicio" and 2 or 0, R.IrInicio)
+    ny = R.EntradaLateral(x, ny, LW, "novedades", "Novedades", pag == "novedades" and 2 or 0, R.IrNovedades)
+    ny = ny + 8
+    R.Rect(x + 20, ny, LW - 40, 1, Cp[1], Cp[2], Cp[3], UI.lineaA * 1.6)
+    ny = ny + 14
+    R.Text(x + 24, ny, "Apartados", 12, G[1], G[2], G[3], 1, false, "negrita")
+    ny = ny + 24
+    local apActual = (pag == "seccion") and select(2, R.ApartadoDe(Menu.seccion)) or nil
+    for ai, a in ipairs(UI.apartados) do
+        local abierto = apActual == ai
+        ny = R.EntradaLateral(x, ny, LW, a.icono, a.nombre, abierto and 1 or 0, R.AbrirApartado, ai, abierto and 1 or 2)
+        if abierto then
+            -- sus secciones, en árbol
+            local y0s = ny
+            for _, nom in ipairs(a.secciones) do
+                local si = R.IndiceSeccion(nom)
+                if si then
+                    local activa = si == Menu.seccion
+                    local enc = R.Encima(x + 12, ny, LW - 24, 30)
+                    if activa then
+                        R.Rect(x + 12, ny, LW - 24, 30, Cp[1], Cp[2], Cp[3], 0.08, 6)
+                        if Menu.col == 0 then R.Borde(x + 12, ny, LW - 24, 30, A[1], A[2], A[3], 0.5, 1, 6) end
+                    elseif enc then
+                        R.Rect(x + 12, ny, LW - 24, 30, Cp[1], Cp[2], Cp[3], 0.045, 6)
+                    end
+                    local c = (activa or enc) and T1 or T2
+                    local est = activa and "negrita" or nil
+                    R.Text(x + 50, ny + 5, Recortar(nom, 14, LW - 80, est), 14, c[1], c[2], c[3], 1, false, est)
+                    R.Hit(x + 12, ny, LW - 24, 30, R.IrSeccion, si)
+                    ny = ny + 30
+                end
+            end
+            R.Rect(x + 30, y0s + 2, 1, ny - y0s - 4, Cp[1], Cp[2], Cp[3], 0.16)
+            ny = ny + 6
+        end
+    end
     -- abajo: modo claro / oscuro
     do
         local pie = y + H - 50
@@ -12899,7 +12614,7 @@ local function DibujarMenu(sw, sh)
         local ex, ew = x + 12, LW - 24
         if R.Encima(ex, pie, ew, 36) then R.Rect(ex, pie, ew, 36, Cp[1], Cp[2], Cp[3], 0.045, 6) end
         Icono(claro and "sol" or "luna", ex + 18, pie + 18, 18, 0.85)
-        R.Text(ex + 38, pie + 8, claro and "Light mode" or "Dark mode", 14, T2[1], T2[2], T2[3], 1)
+        R.Text(ex + 38, pie + 8, claro and "Modo claro" or "Modo oscuro", 14, T2[1], T2[2], T2[3], 1)
         local sx, sy = ex + ew - 46, pie + 9
         local a = claro and 1 or 0
         local P, K2 = UI.pistaOff, UI.sobreA
@@ -12910,8 +12625,8 @@ local function DibujarMenu(sw, sh)
 
     -- Selector de color encima de todo
     if Menu.picker then R.DibujarSelector(sw, sh, A) end
-    -- Cursor propio en el overlay (se desvanece con la ventana al cerrar)
-    if Anim.open > 0.05 then R.alpha = e; DibujarCursor(Raton.x, Raton.y) end
+    -- Cursor propio en el overlay
+    if Menu.abierto then DibujarCursor(Raton.x, Raton.y) end
     R.alpha, R.ox = 1, 0
 end
 
@@ -12922,13 +12637,13 @@ end
 local function DibujarHUDJuego(sw, sh)
     local linea
     if not Config.activado then
-        linea = "Carry cars off   ·   " .. K("menu") .. " menu"
+        linea = "Cargar coches desactivado   ·   " .. K("menu") .. " menú"
     elseif vehiculo then
-        linea = K("lanzar") .. " Throw      " .. K("agarrar") .. " Drop"
+        linea = K("lanzar") .. " Lanzar      " .. K("agarrar") .. " Soltar"
     elseif apuntado then
-        linea = K("agarrar") .. " Grab vehicle"
+        linea = K("agarrar") .. " Coger vehículo"
     else
-        linea = "Aim at a vehicle   ·   " .. K("menu") .. " menu"
+        linea = "Apunta a un vehículo   ·   " .. K("menu") .. " menú"
     end
     local activo = Config.activado and (vehiculo or apuntado)
     local lp = LineaPosesion()
@@ -13156,7 +12871,7 @@ function Diver.Postura()
     return P[2], P[3]
 end
 function Diver.EmpezarVuelo(ped)
-    if IsPedInAnyVehicle(ped, false) then Config.volar = false; Avisar("Get out of the car to fly"); return end
+    if IsPedInAnyVehicle(ped, false) then Config.volar = false; Avisar("Bájate del coche para volar"); return end
     if Cam.activa then Cam.Apagar() end
     SetPedCanRagdoll(ped, false)
     ClearPedTasksImmediately(ped)
@@ -13164,7 +12879,7 @@ function Diver.EmpezarVuelo(ped)
     local c = GetEntityCoords(ped)
     SetEntityCoordsNoOffset(ped, c.x, c.y, c.z + 1.5, false, false, false)
     FreezeEntityPosition(ped, true)
-    Avisar("Flying! " .. NombreTecla(TeclaDe("volar")) .. " to land")
+    Avisar("¡A volar! " .. NombreTecla(TeclaDe("volar")) .. " para aterrizar")
 end
 function Diver.TerminarVuelo(ped)
     local v = Diver.vuelo
@@ -13375,11 +13090,11 @@ function Diver.Curar()
     SetEntityHealth(ped, GetEntityMaxHealth(ped))
     SetPedArmour(ped, 100)
     ClearPedBloodDamage(ped)
-    Avisar("Good as new")
+    Avisar("Como nuevo")
 end
 function Diver.IrMarcador()
     local blip = GetFirstBlipInfoId(8)
-    if not DoesBlipExist(blip) then Avisar("Set a map marker first"); return end
+    if not DoesBlipExist(blip) then Avisar("Pon un marcador en el mapa primero"); return end
     local c = GetBlipInfoIdCoord(blip)
     Citizen.CreateThread(function()
         local ped = PlayerPedId()
@@ -13395,22 +13110,22 @@ function Diver.IrMarcador()
         end
         SetEntityCoordsNoOffset(ent, c.x, c.y, (suelo or 60.0) + 1.0, false, false, false)
         FreezeEntityPosition(ent, false)
-        Avisar(suelo and "You're there" or "You're there (couldn't find the ground, careful)")
+        Avisar(suelo and "Ya estás" or "Ya estás (no encontré el suelo, cuidado)")
     end)
 end
 function Diver.Paracaidas()
     local ped = PlayerPedId()
-    if IsPedInAnyVehicle(ped, false) then Avisar("Get out of the car first"); return end
+    if IsPedInAnyVehicle(ped, false) then Avisar("Bájate del coche primero"); return end
     GiveWeaponToPed(ped, GetHashKey("GADGET_PARACHUTE"), 1, false, false)
     local c = GetEntityCoords(ped)
     SetEntityCoordsNoOffset(ped, c.x, c.y, c.z + 450.0, false, false, false)
-    Avisar("Jump! Open the parachute with F or click")
+    Avisar("¡Salta! Abre el paracaídas con F o clic")
 end
 function Diver.CocheActual()
     local ped = PlayerPedId()
     local v = GetVehiclePedIsIn(ped, false)
     if v == 0 then v = GetVehiclePedIsIn(ped, true) end
-    if v == 0 or not DoesEntityExist(v) then Avisar("Get in a car"); return nil end
+    if v == 0 or not DoesEntityExist(v) then Avisar("Súbete a un coche"); return nil end
     return v
 end
 function Diver.Arreglar()
@@ -13419,21 +13134,21 @@ function Diver.Arreglar()
     SetVehicleFixed(v); SetVehicleDeformationFixed(v)
     SetVehicleEngineHealth(v, 1000.0); SetVehiclePetrolTankHealth(v, 1000.0)
     SetVehicleDirtLevel(v, 0.0); WashDecalsFromVehicle(v, 1.0)
-    Avisar("Car good as new")
+    Avisar("Coche como nuevo")
 end
 function Diver.Voltear()
     local v = Diver.CocheActual()
     if not v then return end
     SetEntityRotation(v, 0.0, 0.0, GetEntityHeading(v), 2, true)
     SetVehicleOnGroundProperly(v)
-    Avisar("Upright again")
+    Avisar("De pie otra vez")
 end
 function Diver.Cohete()
     local v = Diver.CocheActual()
     if not v then return end
     local vel = GetEntityVelocity(v)
     SetEntityVelocity(v, vel.x, vel.y, vel.z + 30.0)
-    Avisar("Liftoff!")
+    Avisar("¡Despegue!")
 end
 function Diver.Rayo() ForceLightningFlash() end
 -- Partícula de un solo golpe (solo en tu pantalla)
@@ -13453,7 +13168,7 @@ function Diver.Fuegos()
         for i = 1, 6 do
             if not Diver.Particula("scr_indep_fireworks", tipos[(i - 1) % 3 + 1],
                 c.x + math.random(-12, 12), c.y + math.random(-12, 12), c.z + 22 + math.random(0, 10), 2.0) then
-                Avisar("Couldn't load the effect")
+                Avisar("No se pudo cargar el efecto")
                 return
             end
             Citizen.Wait(450)
@@ -13464,7 +13179,7 @@ function Diver.Confeti()
     Citizen.CreateThread(function()
         local c = GetEntityCoords(PlayerPedId())
         if not Diver.Particula("scr_xs_celebration", "scr_xs_confetti_burst", c.x, c.y, c.z + 0.6, 1.6) then
-            Avisar("Couldn't load the effect")
+            Avisar("No se pudo cargar el efecto")
         end
     end)
 end
@@ -13498,11 +13213,11 @@ end
 
 function Cam.Encender()
     if Cam.activa then return end
-    if not Cam.Disponible() then Avisar("This version of Susano has no LockCameraPos / SetCameraPos"); return end
+    if not Cam.Disponible() then Avisar("Esta versión de Susano no tiene LockCameraPos / SetCameraPos"); return end
     local ped = PlayerPedId()
     if IsPedDeadOrDying(ped, true) then return end
-    if IsPedInAnyVehicle(ped, false) then Avisar("Get out of the vehicle to use the freecam"); return end
-    if Pos and Pos.activo then Avisar("Stop controlling the NPC to use the freecam"); return end
+    if IsPedInAnyVehicle(ped, false) then Avisar("Bájate del vehículo para usar la freecam"); return end
+    if Pos and Pos.activo then Avisar("Deja de controlar al NPC para usar la freecam"); return end
     if vehiculo then Soltar() end
     local c = GetFinalRenderedCamCoord()
     Cam.x, Cam.y, Cam.z = c.x, c.y, c.z
@@ -13513,7 +13228,7 @@ function Cam.Encender()
     Susano.LockCameraPos(true)
     Susano.SetCameraPos(Cam.x, Cam.y, Cam.z)
     Cam.activa = true
-    Avisar("Freecam on  ·  " .. NombreTecla(TeclaDe("freecam")) .. " to exit")
+    Avisar("Freecam activada  ·  " .. NombreTecla(TeclaDe("freecam")) .. " para salir")
 end
 
 function Cam.Apagar()
@@ -13524,7 +13239,7 @@ function Cam.Apagar()
     local ped = PlayerPedId()
     FreezeEntityPosition(ped, false)
     if Config.protegerCuerpo then SetEntityInvincible(ped, false) end
-    Avisar("Freecam off")
+    Avisar("Freecam desactivada")
 end
 
 function Cam.Alternar()
@@ -13570,61 +13285,6 @@ function Cam.Frame(ped)
     if ahora >= Cam.proxFoco then
         Cam.proxFoco = ahora + 400
         SetFocusPosAndVel(Cam.x, Cam.y, Cam.z, 0.0, 0.0, 0.0)
-    end
-end
-
--- ── Herramientas de la freecam (se cambian con la rueda, se usan con clic izquierdo) ──
--- Todas son para ti o cosas locales: copiar la ropa de alguien, traerte a ese punto,
--- coger el coche que miras (con Cargar coches encendido) y fuegos artificiales (solo los ves tú).
-Cam.HERR = {
-    { id = "ropa",   nombre = "Copy clothes", icono = "ropa",      ayuda = "Click a player to put on their whole look." },
-    { id = "traer",  nombre = "Bring me here", icono = "pin",      ayuda = "Click to teleport to the point you're looking at." },
-    { id = "coche",  nombre = "Grab car",     icono = "vehiculos", ayuda = "Click a car to grab it (needs Carry cars on)." },
-    { id = "fuegos", nombre = "Fireworks",    icono = "efectos",   ayuda = "Click to set off fireworks there (only you see them)." },
-}
-Cam.herr = 1
-
-function Cam.Apuntar()
-    local o = vector3(Cam.x, Cam.y, Cam.z)
-    local d = DirCamara()
-    local hit, punto, ent = Raycast(o, o + d * 1200.0, -1, Cam.ped)
-    local pedObj
-    if ent and ent ~= 0 and ent ~= Cam.ped and DoesEntityExist(ent) and IsEntityAPed(ent) and not IsPedDeadOrDying(ent, true) then
-        pedObj = ent
-    end
-    return (hit and punto) or (o + d * 60.0), pedObj
-end
-
-function Cam.CambiarHerr(dir)
-    local n = #Cam.HERR
-    Cam.herr = ((Cam.herr - 1 + dir) % n) + 1
-    Avisar(Cam.HERR[Cam.herr].nombre)
-end
-
--- Cada frame con la freecam puesta y el menú cerrado
-function Cam.Herramienta(ped)
-    -- rueda: cambia de herramienta
-    if IsDisabledControlJustPressed(0, 241) or IsDisabledControlJustPressed(0, 15) then Cam.CambiarHerr(-1) end
-    if IsDisabledControlJustPressed(0, 242) or IsDisabledControlJustPressed(0, 14) then Cam.CambiarHerr(1) end
-    local _, justo = Tecla(0x01)
-    if not justo then return end
-    local h = Cam.HERR[Cam.herr]
-    if h.id == "coche" then
-        if Config.activado then Cam.agarrar = true else Avisar("Turn on Carry cars first") end
-        return
-    end
-    local punto, objPed = Cam.Apuntar()
-    if h.id == "ropa" then
-        if objPed and IsPedAPlayer(objPed) then
-            local pid = NetworkGetPlayerIndexFromPed(objPed)
-            Ropa.CopiarDe(objPed, (GetPlayerName(pid) or "player"))
-        else Avisar("Aim at a player to copy their clothes") end
-    elseif h.id == "traer" then
-        Cam.Apagar()
-        SetEntityCoordsNoOffset(ped, punto.x, punto.y, punto.z + 1.0, false, false, false)
-        Avisar("You're there")
-    elseif h.id == "fuegos" then
-        Diver.Particula("scr_indep_fireworks", "scr_indep_firework_starburst", punto.x, punto.y, punto.z + 1.0, 2.0)
     end
 end
 
@@ -13680,7 +13340,6 @@ local function Frame()
         local _, pSuperO  = Tecla(TeclaDe("superOrbitar"))
         local _, pSuperM  = Tecla(TeclaDe("superMontar"))
         local aguaAbajo   = Tecla(TeclaDe("agua"))
-        if Cam.activa then Cam.Herramienta(ped) end       -- rueda + clic: herramientas de la freecam
         if not Pos.activo then Extras.Frame(ped, pFijar, aguaAbajo) else Extras.MenuAbierto() end
         if pParar and not Pos.activo and not vehiculo and not Super.activo then Animac.Parar() end
         -- Justo después de cerrar el menú con Esc, bloquear la pausa de GTA
@@ -13694,7 +13353,6 @@ local function Frame()
             Teclas.Instantanea()
             Super.Frame(ped, false, false, false, false)
         else
-            if Cam.agarrar then pAgarrar, Cam.agarrar = true, nil end   -- «Grab car» de la freecam
             if not Pos.activo then LogicaCargar(ped, pAgarrar, pLanzar) end
             PosesionFrame(ped, pPoseer, pVolver, false)
             Teclas.ProcesarAtajos()               -- teclas puestas a opciones sueltas
@@ -13713,7 +13371,7 @@ Citizen.Limpieza = function()
     print("[cargar coches] Copia anterior descargada")
     local me = PlayerPedId()
     pcall(function() if vehiculo then Soltar() end end)
-    pcall(function() if Pos and Pos.activo then Soltar_("script reloaded") end end)
+    pcall(function() if Pos and Pos.activo then Soltar_("script recargado") end end)
     pcall(function() if Super.activo and Super.SoltarTodos then Super.SoltarTodos(me, GetGameTimer(), true) end end)
     pcall(function() Extras.PararAgua() end)
     pcall(function() if apuntado then Contorno(apuntado, false); apuntado = nil end end)
@@ -13742,8 +13400,8 @@ Citizen.CreateThread(function()
     print("[cargar coches] API de Susano: " .. table.concat(fn, ", "))
     -- Cargar lo guardado (ajustes, teclas, atuendos y, si se pidió, la apariencia)
     local okA, hay = pcall(Guardado.Cargar)
-    print("[cargar coches] Ajustes: " .. ((okA and hay) and "cargados" or "default")
-        .. " | saved to file: " .. (Guardado.Disponible() and "yes" or "no (use Export/Import)"))
+    print("[cargar coches] Ajustes: " .. ((okA and hay) and "cargados" or "por defecto")
+        .. " | guardado en archivo: " .. (Guardado.Disponible() and "sí" or "no (usa Exportar/Importar)"))
     if Config.aparienciaAlIniciar then pcall(Guardado.CargarApariencia, true) end
 
     -- Guardado automático (cada vez que algo cambia, a los 2 s)

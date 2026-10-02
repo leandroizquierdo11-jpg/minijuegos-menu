@@ -1,0 +1,1 @@
+Approximate screenshots of Surge v11.5 (English, collapsible sidebar, freecam tools, full-body marker box). Rendered from the Susano draw calls with a simulated background and font.
