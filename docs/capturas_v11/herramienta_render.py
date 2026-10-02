@@ -25,7 +25,7 @@ for c in cmds:
     elif k=='g':
         _,x,y,w,h,rad,r1,g1,b1,a1,r2,g2,b2,a2,r3,g3,b3,a3,r4,g4,b4,a4=c
         gid+=1
-        vertical = abs(r1-r4)+abs(g1-g4)+abs(b1-b4)+abs(a1-a4) < abs(r1-r2)+abs(g1-g2)+abs(b1-b2)+abs(a1-a2)+0.0001 or (abs(r1-r2)+abs(g1-g2)+abs(b1-b2)+abs(a1-a2)<1e-6)
+        vertical = (abs(r1-r2)+abs(g1-g2)+abs(b1-b2)+abs(a1-a2)) <= (abs(r1-r4)+abs(g1-g4)+abs(b1-b4)+abs(a1-a4))
         if vertical:
             s0=(r1,g1,b1,a1); s1=(r4,g4,b4,a4); xy='x1="0" y1="0" x2="0" y2="1"'
         else:

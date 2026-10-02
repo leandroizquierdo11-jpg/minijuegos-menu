@@ -1,5 +1,8 @@
--- cargar_coches.lua  ·  v11.1
+-- cargar_coches.lua  ·  v11.2
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v11.2: INTERFAZ TIPO PÁGINA WEB · buscador (Ctrl+F) en opciones y documentación · columna de documentación de cada opción
+--          (valor actual, rango, por defecto y restablecer) · modo claro / oscuro · Inicio con estado, atajos, consejos,
+--          novedades y todas las herramientas con enlaces · página de Novedades · Esc vuelve atrás
 --   v11.1: FREECAM propia (Susano.LockCameraPos / SetCameraPos): tecla F6, W A S D + Espacio/Ctrl + Shift/Alt, mira en el centro; marcar objetivos y coger coches desde lejos
 --   v11.0: INTERFAZ NUEVA, TODO CON SUSANO · ventana de cristal oscuro (desenfoque, degradados, sombras, interruptores, sliders con tirador,
 --          scroll con recorte) · ya no se usa el dibujo de GTA (ni DrawRect, ni texto, ni notificaciones, ni DrawMarker, ni contorno):
@@ -124,6 +127,7 @@ local Config = {
     supermanRadio  = 60.0,   -- hasta qué distancia se buscan coches (m)
     supermanFuerza = 60.0,   -- velocidad a la que salen al lanzarlos (m/s)
     supermanModo   = 1,      -- 1 = lanzar todos a la vez · 2 = de uno en uno (y el anillo se rellena)
+    tema           = 1,      -- 1 = modo oscuro · 2 = modo claro
     freecamVel     = 15.0,   -- velocidad de la freecam (m/s); Shift = ×4, Alt = ÷4
     colorContorno  = { 60, 180, 255, 255 },
 }
@@ -672,7 +676,7 @@ end
 --   Se maneja con ratón (clic, arrastrar barras) o con teclado.
 --   Para añadir una sección: una entrada más en "Secciones".
 -- ═════════════════════════════════════════════════════════
-local Menu = { abierto = false, seccion = 1, col = 0, pos = { 1, 1 }, dirSec = 1,
+local Menu = { abierto = false, seccion = 1, col = 0, pos = { 1, 1 }, dirSec = 1, pagina = "inicio",
                esperandoTecla = false, aviso = nil, avisoHasta = 0 }
 
 local function Avisar(t) Menu.aviso = t; Menu.avisoHasta = GetGameTimer() + 2200; if R and R.Aviso then R.Aviso(t) end end
@@ -2186,6 +2190,7 @@ local function CargarKvp(clave) return Deserializar(LeerArchivo(clave)) end
 -- Valores por defecto (para "Restablecer")
 local CONFIG_DEFECTO = {}
 for k, v in pairs(Config) do if type(v) ~= "table" then CONFIG_DEFECTO[k] = v end end
+Guardado.defecto = CONFIG_DEFECTO   -- la documentación de la página enseña el valor por defecto
 
 function Guardado.Guardar(silencioso)
     local datos = { config = {}, teclas = {}, atuendos = Ropa.atuendos }
@@ -5286,7 +5291,8 @@ local Secciones = {
     { nombre = "Menú", sub = "Ajustes", icono = "engranaje", engranaje = true, paneles = {
         { titulo = "Apariencia", items = {
             Lista("Color", "colorMenu", nombresColores, "Color de acento del menú."),
-            Toggle("Descripciones", "descripciones", "Muestra abajo la descripción de cada opción."),
+            Lista("Tema", "tema", { "Oscuro", "Claro" }, "Modo oscuro o modo claro de la página. También con el sol / la luna de arriba a la derecha."),
+            Toggle("Documentación", "descripciones", "Muestra a la derecha la documentación de la opción que señalas."),
         } },
         { titulo = "General", items = {
             Accion("Guardar ajustes", function() Guardado.Guardar(false) end,
@@ -5345,6 +5351,7 @@ local function ItemFoco()
 end
 
 local function CambiarSeccion(i)
+    Menu.pagina = "seccion"
     if i == Menu.seccion then return end
     Menu.dirSec  = (i > Menu.seccion) and 1 or -1
     Menu.seccion = i
@@ -5441,9 +5448,11 @@ end
 
 local function ProcesarEscritura()
     local it = Menu.escribiendo
-    if Pulsada(0x0D) or Pulsada(0x1B) or Pulsada(TECLA_MENU) then
+    local enter = Pulsada(0x0D)
+    if enter or Pulsada(0x1B) or Pulsada(TECLA_MENU) then
         Menu.escribiendo = nil
         Teclas.Instantanea()
+        if enter and it.alEnter then it.alEnter() end
         return
     end
     local txt = it.get() or ""
@@ -5531,6 +5540,8 @@ local function ProcesarRaton()
             else
                 Activar(h.item)
             end
+        elseif h.fn then
+            h.fn(h)                       -- botones, enlaces y resultados de la página
         end
     end
     if Raton.clickDer and h and h.tipo == "item" and h.item.tipo == "lista" then CambiarValor(h.item, -1) end
@@ -5565,18 +5576,24 @@ local function ProcesarMenu()
         -- Clic fuera del campo: dejar de escribir
         if Raton.click and Menu.escribiendo == campo then
             local h = HitEn(Raton.x, Raton.y)
-            if not (h and h.tipo == "item" and h.item == campo) then Menu.escribiendo = nil end
+            if not (h and h.item == campo) then Menu.escribiendo = nil end
         end
         if Menu.escribiendo then ProcesarEscritura() end
         return
     end
 
     ProcesarRaton()
+    if not Menu.abierto then return end
+    -- Ctrl + F: buscar
+    if Tecla(0x11) and Pulsada(0x46) then R.EmpezarBusqueda(); return end
 
     local arriba, abajo = Repetir(0x26), Repetir(0x28)
     local izq, der      = Repetir(0x25), Repetir(0x27)
 
-    if Menu.col == 0 then
+    if Menu.col == 0 and Menu.pagina ~= "seccion" then
+        -- En Inicio, Buscar o Novedades: cualquier flecha o Enter abre la sección elegida en la barra lateral
+        if arriba or abajo or der or Pulsada(0x0D) then Menu.pagina = "seccion" end
+    elseif Menu.col == 0 then
         -- Barra lateral: ↑↓ cambia de sección, → o Enter entra en los paneles
         if arriba then CambiarSeccion((Menu.seccion - 2) % #Secciones + 1) end
         if abajo  then CambiarSeccion(Menu.seccion % #Secciones + 1) end
@@ -5601,7 +5618,10 @@ local function ProcesarMenu()
     end
 
     if Pulsada(0x08) or Pulsada(0x1B) then
-        if Menu.col > 0 then Menu.col = 0 else Menu.abierto = false end
+        -- Atrás: de una opción a la barra lateral, de ahí al Inicio y desde el Inicio se cierra
+        if Menu.col > 0 then Menu.col = 0
+        elseif Menu.pagina ~= "inicio" then Menu.pagina = "inicio"
+        else Menu.abierto = false end
     end
     if Pulsada(TECLA_MENU) then Menu.abierto = false end
     if not Menu.abierto then
@@ -10035,7 +10055,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v11.1"
+local VERSION = "v11.2"
 
 local UI = {
     w = 850, h = 597, lateral = 72,
@@ -10073,8 +10093,9 @@ end
 
 -- Distintivo propio (arriba a la izquierda)
 local function Logo(cx, cy)
-    if R.Imagen("logo", cx - 24, cy - 24, 48, 48, 1, 1, 1, 1) then return end
-    R.TextC(cx, cy - 11, "SG", 15, 1, 1, 1, 1, "titulo")
+    local c = UI.texto or { 1, 1, 1 }
+    if R.Imagen("logo", cx - 20, cy - 20, 40, 40, c[1], c[2], c[3], 1) then return end
+    R.TextC(cx, cy - 11, "SG", 15, c[1], c[2], c[3], 1, "titulo")
 end
 
 -- ── Opciones ──────────────────────────────────────────────
@@ -10117,13 +10138,14 @@ local GRIS_CAMPO = { UI.gris[1] + 0.15, UI.gris[2] + 0.15, UI.gris[3] + 0.15 }
 -- Dibuja una opción y devuelve su rectángulo (x, y, ancho, alto): es a la vez el "de foco" y el clicable
 local function DibujarItem(it, px, pw, iy, foco, A)
     local T1 = UI.texto
+    local Cp = UI.capa
     local tipo = it.tipo
     if tipo == "cat" then
         local activo = it.activo and it.activo()
         it._a = it._a and Suave(it._a, activo and 1 or 0, 16) or (activo and 1 or 0)
         local a = it._a
         local rx, rw = px + 12, pw - 24
-        R.Rect(rx, iy, rw, 32, 1, 1, 1, (foco and 0.10 or 0.045) + 0.04 * a, 9)
+        R.Rect(rx, iy, rw, 32, Cp[1], Cp[2], Cp[3], (foco and 0.10 or 0.045) + 0.04 * a, 9)
         if a > 0.02 then
             R.GradH(rx, iy, rw, 32, A[1], A[2], A[3], 0.24 * a, A[1], A[2], A[3], 0.02 * a, 9)
             R.Rect(rx, iy + 8, 3, 16, A[1], A[2], A[3], a, 1.5)
@@ -10138,20 +10160,19 @@ local function DibujarItem(it, px, pw, iy, foco, A)
         it._a = it._a and Suave(it._a, on, 18) or on
         local a = it._a
         local rx, rw = px + 12, pw - 24
-        if foco then R.Rect(rx, iy, rw, 30, 1, 1, 1, 0.07, 9) end
+        if foco then R.Rect(rx, iy, rw, 30, Cp[1], Cp[2], Cp[3], 0.07, 9) end
         R.Text(rx + 12, iy + 5, it.label, 15, T1[1], T1[2], T1[3], 1)
         -- interruptor: pista con bola que se desliza
         local sx, sy = rx + rw - 12 - 40, iy + 5
         if a > 0.02 then R.Rect(sx - 3, sy - 3, 46, 26, A[1], A[2], A[3], 0.13 * a, 13) end
-        R.Rect(sx, sy, 40, 20, Mix(0.24, A[1], a), Mix(0.25, A[2], a), Mix(0.30, A[3], a), 0.60 + 0.40 * a, 10)
+        R.Rect(sx, sy, 40, 20, Mix(UI.pistaOff[1], A[1], a), Mix(UI.pistaOff[2], A[2], a), Mix(UI.pistaOff[3], A[3], a), 0.60 + 0.40 * a, 10)
         R.Circulo(sx + 10 + 20 * a, sy + 10, 7.5, true, 1, 1, 1, 1)
         return rx, iy, rw, 30
 
     elseif tipo == "slider" or tipo == "lista" or tipo == "bind" then
         local rx, rw = px + 14, pw - 28
-        R.Rect(rx, iy, rw, 38, 1, 1, 1, foco and 0.10 or 0.050, 10)
+        R.Rect(rx, iy, rw, 38, Cp[1], Cp[2], Cp[3], foco and 0.10 or 0.050, 10)
         if foco then R.Borde(rx, iy, rw, 38, A[1], A[2], A[3], 0.55, 1, 10) end
-        R.Text(rx + 12, iy + 6, it.label, 15, T1[1], T1[2], T1[3], 1, false, "negrita")
 
         local valor
         if tipo == "slider" then
@@ -10168,7 +10189,7 @@ local function DibujarItem(it, px, pw, iy, foco, A)
             local pct = (mx > mn) and Clamp((it._v - mn) / (mx - mn), 0, 1) or 1
             local tx, tw = rx + 12, rw - 24
             local lw = max(tw * pct, 0)
-            R.Rect(tx, iy + 29, tw, 4, 1, 1, 1, 0.10, 2)                                   -- pista
+            R.Rect(tx, iy + 29, tw, 4, Cp[1], Cp[2], Cp[3], 0.10, 2)                                   -- pista
             if lw > 1 then R.GradH(tx, iy + 29, lw, 4, A[1], A[2], A[3], 0.70, A[1], A[2], A[3], 1, 2) end   -- relleno
             R.Circulo(tx + lw, iy + 31, 9, true, A[1], A[2], A[3], foco and 0.30 or 0.16)  -- brillo
             R.Circulo(tx + lw, iy + 31, 5.5, true, 1, 1, 1, 1)                             -- tirador
@@ -10185,11 +10206,15 @@ local function DibujarItem(it, px, pw, iy, foco, A)
                 valor = NombreTecla(it.bind.tecla)
             end
         end
-        local maxValor = rw - 24 - Ancho(it.label, 15, "negrita") - 14
+        local etiqueta = it.label
+        local libre = rw - 24 - Ancho(valor, 15) - 14
+        if Ancho(etiqueta, 15, "negrita") > libre then etiqueta = Recortar(etiqueta, 15, max(libre, 70), "negrita") end
+        R.Text(rx + 12, iy + 6, etiqueta, 15, T1[1], T1[2], T1[3], 1, false, "negrita")
+        local maxValor = rw - 24 - Ancho(etiqueta, 15, "negrita") - 14
         valor = Recortar(valor, 15, max(maxValor, 40))
         local wv = Ancho(valor, 15)
         if tipo == "bind" then
-            R.Rect(rx + rw - 12 - wv - 10, iy + 4, wv + 20, 22, 1, 1, 1, 0.10, 7)      -- la tecla, dentro de una "ficha"
+            R.Rect(rx + rw - 12 - wv - 10, iy + 4, wv + 20, 22, Cp[1], Cp[2], Cp[3], 0.10, 7)      -- la tecla, dentro de una "ficha"
             R.Text(rx + rw - 12 - wv, iy + 6, valor, 15, A[1], A[2], A[3], 1)
         else
             R.Text(rx + rw - 12 - wv, iy + 6, valor, 15, T1[1], T1[2], T1[3], 1)
@@ -10199,7 +10224,7 @@ local function DibujarItem(it, px, pw, iy, foco, A)
     elseif tipo == "campo" then
         local rx, rw = px + 14, pw - 28
         local escribiendo = Menu.escribiendo == it
-        R.Rect(rx, iy, rw, 38, 1, 1, 1, (foco or escribiendo) and 0.10 or 0.050, 10)
+        R.Rect(rx, iy, rw, 38, Cp[1], Cp[2], Cp[3], (foco or escribiendo) and 0.10 or 0.050, 10)
         if foco or escribiendo then R.Borde(rx, iy, rw, 38, A[1], A[2], A[3], escribiendo and 0.9 or 0.55, 1, 10) end
         local txt = it.get() or ""
         local vacio = txt == ""
@@ -10223,7 +10248,7 @@ local function DibujarItem(it, px, pw, iy, foco, A)
             R.GradH(rx, iy, rw, 36, A[1], A[2], A[3], 0.32, A[1], A[2], A[3], 0.10, 10)
             R.Borde(rx, iy, rw, 36, A[1], A[2], A[3], 0.65, 1, 10)
         else
-            R.Rect(rx, iy, rw, 36, 1, 1, 1, 0.060, 10)
+            R.Rect(rx, iy, rw, 36, Cp[1], Cp[2], Cp[3], 0.060, 10)
         end
         local tc = foco and A or T1
         local der = it.derecha
@@ -10252,7 +10277,7 @@ local function NuevoHit(tipo, x, y, w, h)
     local t = hitPool[nHits]
     if not t then t = {}; hitPool[nHits] = t end
     t.tipo, t.x, t.y, t.w, t.h = tipo, x, y, w, h
-    t.i, t.panel, t.posSel, t.item = nil, nil, nil, nil
+    t.i, t.panel, t.posSel, t.item, t.fn, t.dato = nil, nil, nil, nil, nil, nil
     Hits[nHits] = t
     return t
 end
@@ -10270,13 +10295,14 @@ local function DibujarPanel(panel, nPanel, px, py, pw, A, posFoco)
         panel._posY, panel._contenido, panel._posDe, panel._posN = posY, cont, items, nItems
     end
     local posY, contenido = panel._posY, panel._contenido
-    local alto = min(40 + contenido + 12, ALTO_MAX_PANEL)
+    local alto = min(40 + contenido + 12, UI.altoPanel or ALTO_MAX_PANEL)
     local visible = alto - 50                       -- zona de opciones (sin título ni margen)
     local maxScroll = max(0, contenido - visible)
 
     -- Tarjeta de cristal con título
-    R.GradV(px, py, pw, alto, 1, 1, 1, 0.070, 1, 1, 1, 0.030, 14)
-    R.Borde(px, py, pw, alto, 1, 1, 1, 0.075, 1, 14)
+    local Cp, Tj = UI.capa, UI.tarjeta
+    R.Rect(px, py, pw, alto, Tj[1], Tj[2], Tj[3], 1, 14)
+    R.Borde(px, py, pw, alto, Cp[1], Cp[2], Cp[3], UI.bordeA, 1, 14)
     R.Circulo(px + 20, py + 20, 3.2, true, A[1], A[2], A[3], 1)
     R.Text(px + 32, py + 11, panel.titulo, 14, UI.texto[1], UI.texto[2], UI.texto[3], 0.85, false, "negrita")
 
@@ -10335,7 +10361,7 @@ local function DibujarPanel(panel, nPanel, px, py, pw, A, posFoco)
     if maxScroll > 0 then
         local th = max(visible * visible / contenido, 24)
         local ty = arriba + (visible - th) * (scroll / maxScroll)
-        R.Rect(px + pw - 7, arriba, 3, visible, 1, 1, 1, 0.07, 1.5)
+        R.Rect(px + pw - 7, arriba, 3, visible, Cp[1], Cp[2], Cp[3], 0.08, 1.5)
         R.Rect(px + pw - 7, ty, 3, th, A[1], A[2], A[3], 0.9, 1.5)
     end
     return fx, fy, fw, fh
@@ -10350,30 +10376,20 @@ local function DibujarCursor(mx, my)
     R.Linea(mx, my, mx + 10, my + 11, 1, 1, 1, 1, 2)
 end
 
--- Posición de cada icono de sección respecto a la ventana (las secciones no cambian: se calcula una vez)
-local iconosRel
-local function IconosRel()
-    if iconosRel then return iconosRel end
-    iconosRel = {}
-    local yi = 116
-    for i, s in ipairs(Secciones) do
-        if not s.engranaje then
-            iconosRel[#iconosRel + 1] = { i = i, dx = 36, dy = yi }
-            yi = yi + 54
-        else
-            iconosRel[#iconosRel + 1] = { i = i, dx = UI.w - 32, dy = 38 }
-        end
-    end
-    return iconosRel
-end
 local colIcono = { 0, 0, 0 }
 
 -- ── Píldora de cristal (barras del HUD) ──
 function R.Pildora(x, y, w, h, A, progreso)
     R.Sombra(x, y, w, h, 12, 0.7)
-    R.Blur(x, y, w, h, 3, 12, 0.05, 0.05, 0.09, 0.40)
-    R.GradV(x, y, w, h, 0.115, 0.115, 0.170, 0.93, 0.050, 0.050, 0.080, 0.95, 12)
-    R.Borde(x, y, w, h, 1, 1, 1, 0.10, 1, 12)
+    if Config.tema == 2 then
+        R.Blur(x, y, w, h, 3, 12, 1, 1, 1, 0.40)
+        R.Rect(x, y, w, h, 0.99, 0.99, 1.0, 0.95, 12)
+        R.Borde(x, y, w, h, 0, 0, 0, 0.10, 1, 12)
+    else
+        R.Blur(x, y, w, h, 3, 12, 0.05, 0.05, 0.09, 0.40)
+        R.GradV(x, y, w, h, 0.115, 0.115, 0.170, 0.93, 0.050, 0.050, 0.080, 0.95, 12)
+        R.Borde(x, y, w, h, 1, 1, 1, 0.10, 1, 12)
+    end
     if progreso and progreso > 0 then
         R.Rect(x + 12, y + h - 4, (w - 24) * Clamp(progreso, 0, 1), 2, A[1], A[2], A[3], 1, 1)
     end
@@ -10445,12 +10461,12 @@ function R.DibujarPrompt(sw, sh)
     local W, H = 460, 168
     local x, y = floor((sw - W) / 2), floor((sh - H) / 2 + 12 * (1 - k))
     R.Sombra(x, y, W, H, 16, 1.2)
-    R.Blur(x, y, W, H, 4, 16, 0.05, 0.05, 0.09, 0.50)
-    R.GradV(x, y, W, H, 0.12, 0.12, 0.175, 0.96, 0.05, 0.05, 0.08, 0.98, 16)
-    R.Borde(x, y, W, H, 1, 1, 1, 0.12, 1, 16)
+    local Tj, Cp = UI.tarjeta, UI.capa
+    R.Rect(x, y, W, H, Tj[1], Tj[2], Tj[3], 0.98, 16)
+    R.Borde(x, y, W, H, Cp[1], Cp[2], Cp[3], 0.12, 1, 16)
     R.Circulo(x + 30, y + 32, 3.5, true, A[1], A[2], A[3], 1)
     R.Text(x + 42, y + 21, p.titulo or "Escribe", 16, UI.texto[1], UI.texto[2], UI.texto[3], 1, false, "negrita")
-    R.Rect(x + 24, y + 60, W - 48, 42, 1, 1, 1, 0.08, 11)
+    R.Rect(x + 24, y + 60, W - 48, 42, Cp[1], Cp[2], Cp[3], 0.07, 11)
     R.Borde(x + 24, y + 60, W - 48, 42, A[1], A[2], A[3], 0.85, 1, 11)
     local cursor = (floor(GetGameTimer() / 500) % 2 == 0) and "|" or ""
     R.Text(x + 38, y + 71, p.texto .. cursor, 17, UI.texto[1], UI.texto[2], UI.texto[3], 1)
@@ -10512,101 +10528,842 @@ function R.CajaEntidad(e, A)
     end
 end
 
-local function DibujarMenu(sw, sh)
-    local e = EaseOut(Anim.open)
-    local A = Acento()
-    EmpezarHits()
+-- ═════════════════════════════════════════════════════════
+-- INTERFAZ TIPO PÁGINA WEB
+--   Barra superior con buscador · barra lateral con Inicio, Novedades y todas las herramientas ·
+--   páginas: Inicio, Buscar, Novedades y una por sección (con su columna de documentación) ·
+--   modo claro y oscuro. Todo dibujado con Susano.
+-- ═════════════════════════════════════════════════════════
+UI.TEMAS = {
+    { -- oscuro
+        fondo = { 0.055, 0.056, 0.074 }, lateral = { 0.039, 0.040, 0.054 }, tarjeta = { 0.088, 0.090, 0.116 },
+        capa = { 1, 1, 1 }, texto = { 0.94, 0.94, 0.97 }, gris = { 0.56, 0.57, 0.63 }, icono = { 0.68, 0.69, 0.74 },
+        pistaOff = { 0.24, 0.25, 0.30 }, borde = 0.08, grisCampo = { 0.71, 0.72, 0.78 },
+    },
+    { -- claro
+        fondo = { 0.957, 0.959, 0.970 }, lateral = { 0.922, 0.925, 0.942 }, tarjeta = { 1, 1, 1 },
+        capa = { 0, 0, 0 }, texto = { 0.10, 0.11, 0.15 }, gris = { 0.42, 0.44, 0.51 }, icono = { 0.30, 0.32, 0.38 },
+        pistaOff = { 0.78, 0.79, 0.83 }, borde = 0.10, grisCampo = { 0.55, 0.57, 0.63 },
+    },
+}
 
-    -- Cambio de sección: el contenido entra deslizando
-    if Menu.seccion ~= Anim.ultimaTab then
-        Anim.dirTab, Anim.contenido, Anim.ultimaTab = Menu.dirSec, 0, Menu.seccion
+-- Aplica el tema elegido (Config.tema: 1 oscuro, 2 claro) a la paleta que usa todo el dibujo
+function UI.Tema()
+    local t = UI.TEMAS[Config.tema] or UI.TEMAS[1]
+    if UI.temaActual == t then return t end
+    UI.temaActual = t
+    UI.fondo, UI.lateralC, UI.tarjeta, UI.capa = t.fondo, t.lateral, t.tarjeta, t.capa
+    UI.texto, UI.gris, UI.icono, UI.pistaOff, UI.bordeA = t.texto, t.gris, t.icono, t.pistaOff, t.borde
+    GRIS_CAMPO[1], GRIS_CAMPO[2], GRIS_CAMPO[3] = t.grisCampo[1], t.grisCampo[2], t.grisCampo[3]
+    return t
+end
+
+UI.TIPOS = { toggle = "Interruptor", slider = "Barra", lista = "Lista", bind = "Tecla", accion = "Botón",
+             campo = "Texto", cat = "Categoría", texto = "Información" }
+
+-- Explicación de cada sección (cabecera de su página y búsqueda)
+UI.docSeccion = {
+    ["Cargar coches"] = "Coge un vehículo apuntándolo, llévalo encima y lánzalo. Aquí lo enciendes, ajustas el alcance, la fuerza y la freecam.",
+    ["Tuneo"] = "Tunea el vehículo en el que estás o el que tienes cerca: motor, carrocería, interior, ruedas, pintura, luces y estado.",
+    ["Personaje"] = "Ropa, accesorios, pelo, cara, tatuajes, atuendos guardados, uniformes y copiar la ropa de otros jugadores. «Fijar mi ropa» evita que el servidor te la cambie.",
+    ["Control de NPCs"] = "Controla a un NPC o animal a distancia como si fueras tú, con su propia cámara, y elige a quién de la lista de cercanos.",
+    ["Animaciones"] = "Animaciones para ti, para un NPC o con otros jugadores. Busca por nombre y para la que esté sonando con su tecla.",
+    ["Extras"] = "Patadas en moto aunque estén bloqueadas y una manguera de bombero de verdad (cañón real o boca de incendios) contra quien marques.",
+    ["Superman"] = "Levanta los coches libres de la zona (vacíos, de NPC o tuyos) sobre tu cabeza y lánzalos a quien marques. Con la freecam puedes marcar desde lejos.",
+    ["Controles"] = "Cambia cualquier tecla: haz clic en una opción y pulsa la tecla nueva. Si ya la usaba otra opción, se intercambian.",
+    ["Ayuda"] = "Cómo se usa el mod paso a paso y cómo moverse por el menú con el teclado y el ratón.",
+    ["Menú"] = "Apariencia de la página (color, modo claro u oscuro, documentación) y guardar, exportar o importar todos tus ajustes.",
+}
+
+-- Teclas que conviene ver en cada sección (columna de documentación)
+UI.atajos = {
+    ["Cargar coches"] = { "agarrar", "lanzar", "freecam" },
+    ["Control de NPCs"] = { "poseer", "volver" },
+    ["Animaciones"] = { "pararAnim" },
+    ["Extras"] = { "agua", "fijarAgua", "freecam" },
+    ["Superman"] = { "superRecoger", "superLanzar", "superOrbitar", "superMontar", "fijarAgua", "freecam" },
+}
+
+UI.grupos = {
+    { "COCHES", "coche", { "Cargar coches", "Tuneo", "Superman" } },
+    { "PERSONAJE", "ropa", { "Personaje", "Animaciones" } },
+    { "MUNDO", "rayo", { "Control de NPCs", "Extras" } },
+    { "SISTEMA", "engranaje", { "Controles", "Ayuda", "Menú" } },
+}
+
+UI.novedades = {
+    { "v11.2", "Interfaz nueva: una página de verdad", {
+        "Buscador de opciones y documentación arriba (Ctrl+F).",
+        "Cada opción tiene su documentación: qué hace, valor actual, rango, valor por defecto y botón para restablecerla.",
+        "Modo claro y modo oscuro.",
+        "Inicio con el estado del mod, atajos, consejos y todas las herramientas con enlaces directos." } },
+    { "v11.1", "Freecam propia", {
+        "F6 la activa. W A S D, Espacio / Ctrl para subir y bajar, Shift más rápido, Alt más lento.",
+        "Marca objetivos (Superman, manguera) y coge coches desde lejos." } },
+    { "v11.0", "Todo con Susano", {
+        "Avisos, flechas del mundo, contorno 3D del coche, cuadro de texto y errores dibujados con Susano.",
+        "El ratón usa Susano.GetCursorPos." } },
+    { "v10.12", "Superman más fiable", {
+        "Solo coge coches que el juego deja controlar: vacíos, de NPC o tuyos.",
+        "Radio de búsqueda hasta 1000 m y vuelo de los coches lejanos sin saltos." } },
+    { "v10.9", "Una sola copia a la vez", {
+        "Si vuelves a ejecutar el script, la copia anterior suelta todo y se cierra sola." } },
+    { "v10.8", "Uniformes", { "Policía, mecánico y médico en Personaje > Uniformes." } },
+    { "v10.7", "Copiar ropa completa", {
+        "Mochila y ropa addon, cara, rasgos, maquillaje, ojos y forma de andar." } },
+    { "v10.5", "Fijar mi ropa", {
+        "Lo que te quitas en el menú del servidor se queda quitado; lo demás se repone al instante.",
+        "Los tatuajes se mantienen siempre." } },
+}
+
+UI.consejos = {
+    "Pulsa Ctrl+F en cualquier momento para buscar una opción por su nombre o por lo que hace.",
+    "Con la freecam (F6) puedes marcar objetivos desde lejos con el clic de la rueda.",
+    "Señala una opción con el ratón y a la derecha verás su documentación y su valor por defecto.",
+    "Arrastra la barra de arriba para mover la página por la pantalla.",
+    "Shift + flechas cambia los valores de 10 en 10.",
+    "Activa «Fijar mi ropa» en Personaje para que el servidor no te cambie la ropa ni te quite los tatuajes.",
+    "En Menú > Ajustes puedes exportar tu configuración al portapapeles y recuperarla después.",
+    "Esc vuelve atrás: de una opción a la barra lateral y de ahí al Inicio.",
+}
+
+-- Campo del buscador (usa la misma escritura que los demás campos: teclado de Susano)
+UI.campoBusqueda = { tipo = "campo", label = "Buscar", max = 40,
+    get = function() return Menu.busqueda or "" end,
+    set = function(v) Menu.busqueda = v; Menu.pagina = "buscar"; Menu.scrollObj = 0 end,
+    alEnter = function() local r = R.Resultados()[1]; if r then R.AbrirResultado(r) end end }
+
+-- ── Utilidades de la página ──
+function R.Encima(x, y, w, h)
+    return Raton.x >= x and Raton.x <= x + w and Raton.y >= y and Raton.y <= y + h
+end
+
+-- ¿Esta zona se ve? (para no dejar zonas clicables fuera de la parte visible de la página)
+function R.Visible(y, h)
+    return y + h > (UI.visArriba or -1e9) and y < (UI.visAbajo or 1e9)
+end
+
+function R.Hit(x, y, w, h, fn, dato)
+    if not R.Visible(y, h) then return nil end
+    local y0, y1 = max(y, UI.visArriba or y), min(y + h, UI.visAbajo or (y + h))
+    local t = NuevoHit("boton", x, y0, w, y1 - y0)
+    t.fn, t.dato = fn, dato
+    return t
+end
+
+-- Texto en varias líneas que no pasan de maxw píxeles (se guarda: se repite cada frame)
+function R.EnvolverPx(txt, size, maxw, estilo)
+    local cache = R.envCache
+    if not cache or (R.envN or 0) > 400 then cache = {}; R.envCache, R.envN = cache, 0 end
+    local clave = txt .. "\1" .. size .. "\1" .. floor(maxw) .. "\1" .. (estilo or "")
+    local r = cache[clave]
+    if r then return r end
+    r = {}
+    local actual = ""
+    for pal in txt:gmatch("%S+") do
+        local prueba = (actual == "") and pal or (actual .. " " .. pal)
+        if actual ~= "" and Ancho(prueba, size, estilo) > maxw then
+            r[#r + 1] = actual; actual = pal
+        else
+            actual = prueba
+        end
     end
-    Anim.contenido = Suave(Anim.contenido, 1, 12)
+    if actual ~= "" then r[#r + 1] = actual end
+    R.envN = R.envN + 1
+    cache[clave] = r
+    return r
+end
 
-    local W, H = UI.w, UI.h
-    -- Que la ventana no pueda salirse de la pantalla al arrastrarla
-    Config.ventanaX = Clamp(Config.ventanaX, -(sw - W) / 2 - W + 140, (sw - W) / 2 + W - 140)
-    Config.ventanaY = Clamp(Config.ventanaY, -(sh - H) / 2, (sh - H) / 2 + H - 60)
-    local x = floor((sw - W) / 2 + Config.ventanaX)
-    local y = floor((sh - H) / 2 + Config.ventanaY + 24 * (1 - e))  -- entra deslizando desde abajo
-    -- Zona para arrastrar la ventana (la franja superior, fuera de los botones)
-    NuevoHit("mover", x + UI.lateral, y, W - UI.lateral - 70, 90)
-    R.alpha, R.ox = e, 0
+-- Párrafo: devuelve el alto ocupado
+function R.Parrafo(x, y, txt, size, maxw, c, a, linea, maxLineas, estilo)
+    local L = R.EnvolverPx(txt, size, maxw, estilo)
+    local n = min(#L, maxLineas or #L)
+    for i = 1, n do
+        local t = L[i]
+        if i == n and n < #L then t = Recortar(t .. " …", size, maxw, estilo) end
+        R.Text(x, y + (i - 1) * linea, t, size, c[1], c[2], c[3], a, false, estilo)
+    end
+    return n * linea
+end
 
-    -- ── Ventana: cristal oscuro con sombra, brillo de color y borde fino ──
-    local RADIO = 16
-    R.Sombra(x, y, W, H, RADIO, 1)
-    R.Blur(x, y, W, H, 4, RADIO, 0.05, 0.05, 0.09, 0.45)
-    R.GradV(x, y, W, H, 0.115, 0.115, 0.170, 0.94, 0.045, 0.045, 0.075, 0.97, RADIO)
-    if R.Clip(x, y, W, H) then
-        R.Brillo(x + W - 130, y + 20, 260, A[1], A[2], A[3], 0.22)
-        R.Brillo(x + 280, y + H + 60, 280, A[1], A[2], A[3], 0.14)
+-- Iconos dibujados con líneas y círculos de Susano
+function R.IconoDib(tipo, cx, cy, c, a, fondo)
+    local r, g, b = c[1], c[2], c[3]
+    a = a or 1
+    if tipo == "lupa" then
+        R.Circulo(cx - 2, cy - 2, 6, false, r, g, b, a, 2)
+        R.Linea(cx + 2.5, cy + 2.5, cx + 7, cy + 7, r, g, b, a, 2.4)
+    elseif tipo == "casa" then
+        R.Linea(cx - 8, cy - 1, cx, cy - 8, r, g, b, a, 2)
+        R.Linea(cx, cy - 8, cx + 8, cy - 1, r, g, b, a, 2)
+        R.Linea(cx - 6, cy - 2, cx - 6, cy + 7, r, g, b, a, 2)
+        R.Linea(cx + 6, cy - 2, cx + 6, cy + 7, r, g, b, a, 2)
+        R.Linea(cx - 6, cy + 7, cx + 6, cy + 7, r, g, b, a, 2)
+    elseif tipo == "chispa" then
+        R.Linea(cx, cy - 8, cx, cy + 8, r, g, b, a, 2)
+        R.Linea(cx - 8, cy, cx + 8, cy, r, g, b, a, 2)
+        R.Linea(cx - 4, cy - 4, cx + 4, cy + 4, r, g, b, a, 1.4)
+        R.Linea(cx - 4, cy + 4, cx + 4, cy - 4, r, g, b, a, 1.4)
+    elseif tipo == "sol" then
+        R.Circulo(cx, cy, 4.5, true, r, g, b, a)
+        for k = 0, 7 do
+            local ang = k * math.pi / 4
+            R.Linea(cx + math.cos(ang) * 7, cy + math.sin(ang) * 7, cx + math.cos(ang) * 9.5, cy + math.sin(ang) * 9.5, r, g, b, a, 1.8)
+        end
+    elseif tipo == "luna" then
+        local f = fondo or UI.fondo
+        R.Circulo(cx, cy, 7.5, true, r, g, b, a)
+        R.Circulo(cx + 4, cy - 3, 6.5, true, f[1], f[2], f[3], 1)
+    elseif tipo == "cerrar" then
+        R.Linea(cx - 6, cy - 6, cx + 6, cy + 6, r, g, b, a, 2)
+        R.Linea(cx - 6, cy + 6, cx + 6, cy - 6, r, g, b, a, 2)
+    elseif tipo == "libro" then
+        R.Rect(cx - 8, cy - 7, 7, 14, r, g, b, a * 0.9, 2)
+        R.Rect(cx + 1, cy - 7, 7, 14, r, g, b, a * 0.9, 2)
+    end
+end
+
+-- Botón con texto: estilos "acento", "blanco", "borde", "suave"
+function R.Boton(x, y, w, h, texto, estilo, A, fn, dato)
+    local enc = R.Encima(x, y, w, h)
+    local Cp, tc = UI.capa, UI.texto
+    if estilo == "acento" then
+        R.Rect(x, y, w, h, A[1], A[2], A[3], enc and 1 or 0.9, h / 2)
+        tc = UI.blanco
+    elseif estilo == "blanco" then
+        R.Rect(x, y, w, h, 1, 1, 1, enc and 1 or 0.93, h / 2)
+        tc = UI.oscuro
+    elseif estilo == "borde" then
+        R.Rect(x, y, w, h, 1, 1, 1, enc and 0.16 or 0.06, h / 2)
+        R.Borde(x, y, w, h, 1, 1, 1, 0.55, 1, h / 2)
+        tc = UI.blanco
+    else
+        R.Rect(x, y, w, h, Cp[1], Cp[2], Cp[3], enc and 0.12 or 0.06, h / 2)
+    end
+    R.TextC(x + w / 2, y + (h - 19) / 2, texto, 14, tc[1], tc[2], tc[3], 1, "negrita")
+    R.Hit(x, y, w, h, fn, dato)
+end
+UI.blanco, UI.oscuro = { 0.98, 0.98, 1.0 }, { 0.10, 0.10, 0.14 }
+
+function R.BotonIcono(x, y, s, icono, fn, A)
+    local enc = R.Encima(x, y, s, s)
+    local Cp = UI.capa
+    if enc then R.Rect(x, y, s, s, Cp[1], Cp[2], Cp[3], 0.08, s / 2) end
+    R.IconoDib(icono, x + s / 2, y + s / 2, enc and A or UI.texto, 1, UI.fondo)
+    R.Hit(x, y, s, s, fn)
+end
+
+-- Enlace de texto (se colorea y subraya al pasar el ratón)
+function R.Enlace(x, y, txt, size, estilo, fn, dato, c, A)
+    local w = Ancho(txt, size, estilo)
+    local h = size * 1.35
+    local enc = R.Encima(x, y - 2, w, h + 4)
+    c = enc and A or c
+    R.Text(x, y, txt, size, c[1], c[2], c[3], 1, false, estilo)
+    if enc then R.Rect(x, y + h, w, 1, A[1], A[2], A[3], 0.8) end
+    R.Hit(x, y - 2, w, h + 4, fn, dato)
+    return w
+end
+
+-- Píldora de estado: punto de color + texto (clic = acción)
+function R.Chip(x, y, txt, encendido, fn, dato)
+    local w = Ancho(txt, 13) + 38
+    local enc = R.Encima(x, y, w, 30)
+    local Cp, T1 = UI.capa, UI.texto
+    R.Rect(x, y, w, 30, Cp[1], Cp[2], Cp[3], enc and 0.10 or 0.05, 15)
+    R.Borde(x, y, w, 30, Cp[1], Cp[2], Cp[3], 0.08, 1, 15)
+    if encendido then
+        R.Circulo(x + 16, y + 15, 6.5, true, 0.30, 0.85, 0.48, 0.25)
+        R.Circulo(x + 16, y + 15, 4, true, 0.30, 0.85, 0.48, 1)
+    else
+        R.Circulo(x + 16, y + 15, 4, true, UI.gris[1], UI.gris[2], UI.gris[3], 1)
+    end
+    R.Text(x + 28, y + 6, txt, 13, T1[1], T1[2], T1[3], 1)
+    R.Hit(x, y, w, 30, fn, dato)
+    return w
+end
+
+-- Icono PNG (blanco) sobre una ficha redondeada: el color lo da la ficha, no el tinte de la imagen
+function R.Ficha(tipo, cx, cy, tam, activo, A)
+    local Cp = UI.capa
+    if activo then R.Rect(cx - tam / 2, cy - tam / 2, tam, tam, A[1], A[2], A[3], 1, tam * 0.3)
+    elseif Config.tema == 2 then R.Rect(cx - tam / 2, cy - tam / 2, tam, tam, UI.icono[1], UI.icono[2], UI.icono[3], 0.85, tam * 0.3)
+    else R.Rect(cx - tam / 2, cy - tam / 2, tam, tam, Cp[1], Cp[2], Cp[3], 0.09, tam * 0.3) end
+    Icono(tipo, cx, cy, UI.blanco, 1, tam * 0.66)
+end
+
+-- ── Navegación ──
+function R.IrInicio() Menu.pagina, Menu.col = "inicio", 0 end
+function R.IrNovedades() Menu.pagina, Menu.col = "novedades", 0 end
+function R.Cerrar()
+    Menu.abierto = false
+    Raton.moviendo, Raton.arrastre = nil, nil
+    Menu.cierreHasta = GetGameTimer() + 400
+end
+function R.CambiarTema()
+    Config.tema = (Config.tema == 2) and 1 or 2
+    Guardado.pendiente = true
+    Avisar(Config.tema == 2 and "Modo claro" or "Modo oscuro")
+end
+function R.EmpezarBusqueda()
+    Menu.pagina, Menu.col = "buscar", 0
+    UI.cacheBusq = nil
+    Menu.escribiendo = UI.campoBusqueda
+end
+function R.IndiceSeccion(nombre)
+    UI.idxSec = UI.idxSec or {}
+    local i = UI.idxSec[nombre]
+    if i == nil then
+        i = false
+        for k, s in ipairs(Secciones) do if s.nombre == nombre then i = k; break end end
+        UI.idxSec[nombre] = i
+    end
+    return i or nil
+end
+function R.IrSeccion(h)
+    CambiarSeccion(h.dato or h)
+    Menu.col = 0
+end
+-- Abre una sección con una opción ya señalada (si es una categoría, la abre)
+function R.AbrirItem(si, pi, k)
+    CambiarSeccion(si)
+    Menu.col = pi
+    Menu.pos[pi] = k
+    local it = ItemFoco()
+    if it and it.tipo == "cat" and it.fn then it.fn() end
+end
+function R.IrItem(h)   -- dato = sección * 1000 + panel * 100 + posición
+    local d = h.dato
+    R.AbrirItem(floor(d / 1000), floor(d / 100) % 10, d % 100)
+end
+function R.AbrirResultado(h)
+    local r = h.dato or h
+    Menu.escribiendo = nil
+    if r.cat then
+        -- abre la categoría y deja señalada la opción (el panel se rehace con esa categoría)
+        R.AbrirItem(r.sec, 1, r.cat)
+        Menu.col, Menu.pos[2] = 2, r.pos
+    elseif r.pos then R.AbrirItem(r.sec, r.panel, r.pos) else CambiarSeccion(r.sec); Menu.col = 0 end
+end
+
+-- ── Búsqueda ──
+UI.acentos = { { "á", "a" }, { "é", "e" }, { "í", "i" }, { "ó", "o" }, { "ú", "u" }, { "ü", "u" }, { "ñ", "n" },
+               { "Á", "a" }, { "É", "e" }, { "Í", "i" }, { "Ó", "o" }, { "Ú", "u" }, { "Ñ", "n" } }
+function R.Normalizar(s)
+    s = tostring(s or ""):lower()
+    for _, p in ipairs(UI.acentos) do s = s:gsub(p[1], p[2]) end
+    return s
+end
+
+function R.Resultados()
+    local q = R.Normalizar(Menu.busqueda or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if q == UI.cacheBusq then return UI.cacheRes end
+    local res = {}
+    if q ~= "" then
+        for si, s in ipairs(Secciones) do
+            local doc = UI.docSeccion[s.nombre] or ""
+            local ns = R.Normalizar(s.nombre)
+            if ns:find(q, 1, true) then
+                res[#res + 1] = { puntos = 100, sec = si, titulo = s.nombre, desc = doc, tipo = "Sección" }
+            elseif R.Normalizar(doc):find(q, 1, true) then
+                res[#res + 1] = { puntos = 35, sec = si, titulo = s.nombre, desc = doc, tipo = "Sección" }
+            end
+            for pi, p in ipairs(s.paneles) do
+                -- los paneles que cambian según la categoría se buscan abajo, categoría por categoría
+                local items = (p == panelRopa or p == panelOpciones) and {} or p.items
+                local n = 0
+                for _, it in ipairs(items) do
+                    local sel = it.tipo ~= "texto"
+                    if sel then n = n + 1 end
+                    local ok, lab = pcall(Texto, it.label)
+                    lab = (ok and type(lab) == "string") and lab or ""
+                    local d = it.desc
+                    if type(d) == "function" then local ok2, v = pcall(d); d = ok2 and v or nil end
+                    d = type(d) == "string" and d or ""
+                    local nl = R.Normalizar(lab)
+                    local pts = 0
+                    if nl:find(q, 1, true) then pts = (nl:sub(1, #q) == q) and 90 or 70
+                    elseif d ~= "" and R.Normalizar(d):find(q, 1, true) then pts = 40 end
+                    if pts > 0 and lab ~= "" then
+                        res[#res + 1] = { puntos = sel and pts or pts - 20, sec = si, panel = sel and pi or nil, pos = sel and n or nil,
+                            titulo = lab, desc = d, tipo = UI.TIPOS[it.tipo] or "Opción" }
+                    end
+                end
+            end
+        end
+        -- Opciones dentro de cada categoría (aunque no esté abierta): Personaje siempre, Tuneo si hay vehículo
+        for _, grupo in ipairs({ { panelRopa, CATEGORIAS_ROPA, true }, { panelOpciones, CATEGORIAS, Tuneo.veh ~= nil } }) do
+            local panel, cats, sePuede = grupo[1], grupo[2], grupo[3]
+            local si
+            for k, s in ipairs(Secciones) do if s.paneles[2] == panel then si = k end end
+            if si and sePuede and cats then
+                for ci, c in ipairs(cats) do
+                    local items = {}
+                    if pcall(c[2], items) then
+                        local n = 0
+                        for _, it in ipairs(items) do
+                            if it.tipo ~= "texto" then
+                                n = n + 1
+                                local lab = type(it.label) == "string" and it.label or ""
+                                local d = type(it.desc) == "string" and it.desc or ""
+                                local nl = R.Normalizar(lab)
+                                local pts = 0
+                                if nl:find(q, 1, true) then pts = (nl:sub(1, #q) == q) and 85 or 65
+                                elseif d ~= "" and R.Normalizar(d):find(q, 1, true) then pts = 38 end
+                                if pts > 0 and lab:gsub("%s", "") ~= "" then
+                                    res[#res + 1] = { puntos = pts, sec = si, cat = ci, panel = 2, pos = n,
+                                        titulo = lab:gsub("^%s+", ""), desc = (d ~= "" and d or c[1]), tipo = c[1] }
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        table.sort(res, function(a, b) if a.puntos ~= b.puntos then return a.puntos > b.puntos end return a.titulo < b.titulo end)
+        for i = #res, 61, -1 do res[i] = nil end
+    end
+    UI.cacheBusq, UI.cacheRes = q, res
+    return res
+end
+
+-- ── Valores para la documentación ──
+function R.FormatoSlider(it, v)
+    if type(it.fmt) == "function" then local ok, t = pcall(it.fmt, v); return ok and tostring(t) or tostring(v) end
+    local ok, t = pcall(string.format, it.fmt or "%s", v)
+    return ok and t or tostring(v)
+end
+function R.ValorTexto(it)
+    local t = it.tipo
+    if t == "toggle" then return Leer(it) and "Activado" or "Desactivado"
+    elseif t == "slider" then return R.FormatoSlider(it, Leer(it) or Minimo(it))
+    elseif t == "lista" then local i = floor(Leer(it) or 1); return it.opciones[i] or "?"
+    elseif t == "bind" then return NombreTecla(it.bind.tecla)
+    elseif t == "campo" then local v = it.get and it.get() or ""; return v ~= "" and v or "(vacío)"
+    elseif t == "cat" then return (it.activo and it.activo()) and "Abierta" or "Cerrada"
+    end
+    return "-"
+end
+function R.Defecto(it)
+    if it.tipo == "bind" and it.bind then
+        for i, b in ipairs(binds) do if b == it.bind then return bindsPorDefecto[i], NombreTecla(bindsPorDefecto[i]) end end
+        return nil
+    end
+    if not it.key or it.get then return nil end
+    local d = Guardado.defecto and Guardado.defecto[it.key]
+    if d == nil then return nil end
+    if it.tipo == "toggle" then return d, d and "Activado" or "Desactivado"
+    elseif it.tipo == "slider" then return d, R.FormatoSlider(it, d)
+    elseif it.tipo == "lista" then return d, it.opciones[d] or tostring(d) end
+    return nil
+end
+function R.Restablecer(h)
+    local it = h.dato
+    local d = R.Defecto(it)
+    if d == nil then return end
+    if it.tipo == "bind" then it.bind.tecla = d; Guardado.pendiente = true else Escribir(it, d) end
+    Avisar((Texto(it.label) or "Opción") .. ": valor por defecto")
+end
+
+-- ── Buscador de la barra superior ──
+function R.Buscador(x, y, w, h, A)
+    local Cp, T1, G = UI.capa, UI.texto, UI.gris
+    local escribiendo = Menu.escribiendo == UI.campoBusqueda
+    local enc = R.Encima(x, y, w, h)
+    R.Rect(x, y, w, h, Cp[1], Cp[2], Cp[3], (escribiendo or enc) and 0.09 or 0.055, h / 2)
+    if escribiendo then R.Borde(x, y, w, h, A[1], A[2], A[3], 0.9, 1.5, h / 2)
+    else R.Borde(x, y, w, h, Cp[1], Cp[2], Cp[3], 0.10, 1, h / 2) end
+    R.IconoDib("lupa", x + 24, y + h / 2, escribiendo and A or G, 1)
+    local q = Menu.busqueda or ""
+    local maxw = w - 120
+    if q == "" and not escribiendo then
+        R.Text(x + 44, y + (h - 19) / 2, "Buscar opciones y documentación…", 14, G[1], G[2], G[3], 1)
+    else
+        local m = q
+        while #m > 0 and Ancho(m .. "|", 14) > maxw do m = m:sub(2) end
+        local cursor = (escribiendo and floor(GetGameTimer() / 500) % 2 == 0) and "|" or ""
+        R.Text(x + 44, y + (h - 19) / 2, m .. cursor, 14, T1[1], T1[2], T1[3], 1)
+    end
+    local t = R.Hit(x, y, w - 74, h, R.EmpezarBusqueda)
+    if t then t.item = UI.campoBusqueda end
+    if q ~= "" then
+        R.BotonIcono(x + w - 40, y + (h - 28) / 2, 28, "cerrar", function()
+            Menu.busqueda = ""; UI.cacheBusq = nil
+        end, A)
+    end
+    if q == "" then
+        local kw = Ancho("Ctrl+F", 12) + 14
+        R.Rect(x + w - kw - 12, y + (h - 22) / 2, kw, 22, Cp[1], Cp[2], Cp[3], 0.08, 6)
+        R.Text(x + w - kw - 5, y + (h - 22) / 2 + 3, "Ctrl+F", 12, G[1], G[2], G[3], 1)
+    end
+end
+
+-- ── Columna de documentación ──
+function R.Docs(px, py, pw, ph, A, s)
+    local Cp, T1, G = UI.capa, UI.texto, UI.gris
+    local T = UI.tarjeta
+    R.Rect(px, py, pw, ph, T[1], T[2], T[3], 1, 14)
+    R.Borde(px, py, pw, ph, Cp[1], Cp[2], Cp[3], UI.bordeA, 1, 14)
+    local xx, yy, ww = px + 20, py + 18, pw - 40
+    local limite = py + ph - 20
+    R.IconoDib("libro", xx + 8, yy + 9, A, 1)
+    R.Text(xx + 24, yy + 1, "DOCUMENTACIÓN", 12, A[1], A[2], A[3], 1, false, "negrita")
+    yy = yy + 34
+
+    if Menu.esperandoTecla then
+        R.Rect(xx, yy, ww, 70, A[1], A[2], A[3], 0.14, 12)
+        R.Text(xx + 16, yy + 14, "Pulsa la tecla nueva", 16, T1[1], T1[2], T1[3], 1, false, "negrita")
+        R.Text(xx + 16, yy + 40, "Esc para cancelar", 13, G[1], G[2], G[3], 1)
+        return
+    end
+
+    local it = (Menu.col > 0 and Config.descripciones) and ItemFoco() or nil
+    if not it then
+        -- Sin opción señalada: la explicación de la sección y sus atajos
+        R.Text(xx, yy, s.nombre, 20, T1[1], T1[2], T1[3], 1, false, "negrita")
+        yy = yy + 34
+        yy = yy + R.Parrafo(xx, yy, UI.docSeccion[s.nombre] or "Elige una opción para ver qué hace.", 14, ww,
+            { G[1] + 0.12, G[2] + 0.12, G[3] + 0.12 }, 1, 21, 9) + 18
+        local at = UI.atajos[s.nombre]
+        if at and yy < limite - 60 then
+            R.Text(xx, yy, "Atajos", 13, T1[1], T1[2], T1[3], 0.9, false, "negrita")
+            yy = yy + 26
+            for _, id in ipairs(at) do
+                if yy > limite - 30 then break end
+                local b
+                for _, x in ipairs(binds) do if x.id == id then b = x; break end end
+                if b then
+                    local tk = NombreTecla(b.tecla)
+                    local kw = Ancho(tk, 12) + 16
+                    R.Rect(xx, yy, kw, 22, Cp[1], Cp[2], Cp[3], 0.09, 6)
+                    R.Text(xx + 8, yy + 3, tk, 12, A[1], A[2], A[3], 1, false, "negrita")
+                    R.Text(xx + kw + 10, yy + 3, Recortar(b.nombre, 13, ww - kw - 10), 13, G[1] + 0.1, G[2] + 0.1, G[3] + 0.1, 1)
+                    yy = yy + 30
+                end
+            end
+            yy = yy + 6
+        end
+        if yy < limite - 40 then
+            R.Text(xx, yy, "Señala una opción para ver su documentación.", 13, G[1], G[2], G[3], 0.9)
+        end
+        return
+    end
+
+    -- Opción señalada
+    local tipo = UI.TIPOS[it.tipo] or "Opción"
+    local wt = Ancho(tipo, 12) + 20
+    R.Rect(xx, yy, wt, 22, A[1], A[2], A[3], 0.16, 11)
+    R.Text(xx + 10, yy + 3, tipo, 12, A[1], A[2], A[3], 1, false, "negrita")
+    yy = yy + 34
+    yy = yy + R.Parrafo(xx, yy, Texto(it.label) or "", 20, ww, T1, 1, 27, 3, "negrita") + 10
+    local d = it.desc
+    if type(d) == "function" then local ok, v = pcall(d); d = ok and v or nil end
+    if type(d) ~= "string" or d == "" then d = "Esta opción no tiene descripción todavía." end
+    local maxL = max(2, floor((limite - 170 - yy) / 21))
+    yy = yy + R.Parrafo(xx, yy, d, 14, ww, { G[1] + 0.14, G[2] + 0.14, G[3] + 0.14 }, 1, 21, maxL) + 16
+
+    R.Rect(xx, yy, ww, 1, Cp[1], Cp[2], Cp[3], 0.08)
+    yy = yy + 14
+    local v = Recortar(R.ValorTexto(it), 14, ww - 110, "negrita")
+    R.Text(xx, yy, "Valor actual", 13, G[1], G[2], G[3], 1)
+    R.Text(xx + ww - Ancho(v, 14, "negrita"), yy - 1, v, 14, T1[1], T1[2], T1[3], 1, false, "negrita")
+    yy = yy + 26
+    if it.tipo == "slider" then
+        local rango = R.FormatoSlider(it, Minimo(it)) .. "  a  " .. R.FormatoSlider(it, Maximo(it))
+        rango = Recortar(rango, 14, ww - 80)
+        R.Text(xx, yy, "Rango", 13, G[1], G[2], G[3], 1)
+        R.Text(xx + ww - Ancho(rango, 14), yy - 1, rango, 14, T1[1], T1[2], T1[3], 0.9)
+        yy = yy + 26
+    elseif it.tipo == "lista" then
+        R.Text(xx, yy, "Opciones", 13, G[1], G[2], G[3], 1)
+        R.Text(xx + ww - Ancho(tostring(#it.opciones), 14), yy - 1, tostring(#it.opciones), 14, T1[1], T1[2], T1[3], 0.9)
+        yy = yy + 26
+    elseif it.tipo == "bind" then
+        yy = yy + R.Parrafo(xx, yy, "Haz clic en la opción y pulsa la tecla nueva.", 13, ww, G, 1, 19, 2) + 8
+    elseif it.tipo == "accion" then
+        yy = yy + R.Parrafo(xx, yy, "Se ejecuta con un clic o con Enter.", 13, ww, G, 1, 19, 2) + 8
+    end
+    local def, defTxt = R.Defecto(it)
+    if defTxt and yy < limite - 30 then
+        defTxt = Recortar(defTxt, 14, ww - 110)
+        R.Text(xx, yy, "Por defecto", 13, G[1], G[2], G[3], 1)
+        R.Text(xx + ww - Ancho(defTxt, 14), yy - 1, defTxt, 14, T1[1], T1[2], T1[3], 0.9)
+        yy = yy + 32
+        local actual = (it.tipo == "bind") and it.bind.tecla or Leer(it)
+        if actual ~= def and yy + 36 <= limite then
+            R.Boton(xx, yy, ww, 36, "Restablecer valor por defecto", "suave", A, R.Restablecer, it)
+        end
+    end
+end
+
+-- ── Página: Inicio ──
+function R.PagInicio(cx, y0, cw, A)
+    local Cp, T1, G = UI.capa, UI.texto, UI.gris
+    local W1 = UI.blanco
+    local yy = y0
+    -- Portada
+    local bh = 176
+    R.GradH(cx, yy, cw, bh, A[1], A[2], A[3], 1, A[1] * 0.42, A[2] * 0.42, A[3] * 0.55, 1, 18)
+    if R.Clip(cx, yy, cw, bh) then
+        R.Brillo(cx + cw - 110, yy + 20, 230, 1, 1, 1, 0.20)
+        R.Brillo(cx + cw * 0.55, yy + bh + 30, 170, 1, 1, 1, 0.10)
         R.FinClip()
     end
-    R.Borde(x, y, W, H, 1, 1, 1, 0.11, 1, RADIO)
+    local ok, nombre = pcall(GetPlayerName, PlayerId())
+    nombre = (ok and type(nombre) == "string" and nombre ~= "") and nombre or "jugador"
+    R.Text(cx + 34, yy + 28, "Hola, " .. nombre, 28, W1[1], W1[2], W1[3], 1, false, "titulo")
+    R.Parrafo(cx + 34, yy + 72, "Todo tu menú en una sola página: busca cualquier opción, lee para qué sirve y cámbiala al momento.",
+        15, min(560, cw - 68), W1, 0.92, 22, 2)
+    R.Boton(cx + 34, yy + bh - 56, 186, 38, "Buscar una opción", "blanco", A, R.EmpezarBusqueda)
+    R.Boton(cx + 34 + 198, yy + bh - 56, 160, 38, "Ver novedades", "borde", A, R.IrNovedades)
+    yy = yy + bh + 26
 
-    -- Barra lateral (opaca, con las esquinas del lado izquierdo redondas)
-    local F = UI.lateralC
-    R.Rect(x, y, UI.lateral, H, F[1], F[2], F[3], 1, RADIO)
-    R.Rect(x + UI.lateral - RADIO, y, RADIO, H, F[1], F[2], F[3], 1)
-    R.Rect(x + UI.lateral, y + 16, 1, H - 32, 1, 1, 1, 0.07)
+    -- Estado del mod
+    R.Text(cx, yy, "Estado", 18, T1[1], T1[2], T1[3], 1, false, "negrita")
+    yy = yy + 34
+    local estados = UI.estados
+    if not estados then
+        estados = {
+            { "Mod", function() return Config.activado end, function() Config.activado = not Config.activado; Guardado.pendiente = true; Avisar(Config.activado and "Mod activado" or "Mod desactivado") end },
+            { "Freecam", function() return Cam.activa end, function() Cam.Alternar() end },
+            { "Superman", function() return Config.superman end, function() Config.superman = not Config.superman; Guardado.pendiente = true; Avisar(Config.superman and "Modo Superman: activado" or "Modo Superman: apagado") end },
+            { "Manguera", function() return Config.manguera end, function() Config.manguera = not Config.manguera; Guardado.pendiente = true; Avisar(Config.manguera and "Manguera: activada" or "Manguera: apagada") end },
+            { "Ropa fija", function() return Ropa.fijar end, function() local si = R.IndiceSeccion("Personaje"); if si then CambiarSeccion(si); Menu.col = 0 end end },
+            { "Contorno", function() return Config.contorno end, function() Config.contorno = not Config.contorno; Guardado.pendiente = true end },
+        }
+        UI.estados = estados
+    end
+    local xx = cx
+    for _, e in ipairs(estados) do
+        local on = e[2]() and true or false
+        local txt = e[1] .. "  ·  " .. (on and "activo" or "apagado")
+        local w = Ancho(txt, 13) + 38
+        if xx + w > cx + cw then xx = cx; yy = yy + 40 end
+        xx = xx + R.Chip(xx, yy, txt, on, e[3]) + 10
+    end
+    yy = yy + 30 + 24
 
-    Logo(x + 36, y + 38)
+    -- Atajos rápidos
+    R.Rect(cx, yy, cw, 54, Cp[1], Cp[2], Cp[3], 0.045, 14)
+    R.Borde(cx, yy, cw, 54, Cp[1], Cp[2], Cp[3], UI.bordeA, 1, 14)
+    R.Text(cx + 20, yy + 16, "Atajos rápidos", 14, T1[1], T1[2], T1[3], 1, false, "negrita")
+    local ax = cx + 20 + Ancho("Atajos rápidos", 14, "negrita") + 24
+    local atajos = { { NombreTecla(TECLA_MENU), "menú" }, { NombreTecla(TeclaDe("freecam")), "freecam" },
+                     { NombreTecla(TeclaDe("agarrar")), "coger coche" }, { NombreTecla(TeclaDe("superRecoger")), "Superman" },
+                     { "Ctrl+F", "buscar" } }
+    for _, a in ipairs(atajos) do
+        local kw = Ancho(a[1], 12) + 16
+        local tw = Ancho(a[2], 13)
+        if ax + kw + tw + 30 > cx + cw - 10 then break end
+        R.Rect(ax, yy + 15, kw, 24, Cp[1], Cp[2], Cp[3], 0.09, 6)
+        R.Text(ax + 8, yy + 18, a[1], 12, A[1], A[2], A[3], 1, false, "negrita")
+        R.Text(ax + kw + 8, yy + 18, a[2], 13, G[1] + 0.1, G[2] + 0.1, G[3] + 0.1, 1)
+        ax = ax + kw + tw + 30
+    end
+    yy = yy + 54 + 34
 
-    -- Iconos de sección (barra lateral)
-    local sec = SeccionActual()
-    local iconos = IconosRel()
-    for k = 1, #iconos do
-        local ic = iconos[k]
-        if ic.i == Menu.seccion then
-            -- Posición relativa a la ventana: si la arrastras, el resalte va con ella
-            local rx, ry = ic.dx, ic.dy
-            Anim.lateralY = Anim.lateralY and Suave(Anim.lateralY, ry, 18) or ry
-            Anim.lateralX = Anim.lateralX and Suave(Anim.lateralX, rx, 18) or rx
+    -- Todas las herramientas (como un menú de página web, con enlaces directos)
+    R.Text(cx, yy, "Todas las herramientas", 22, T1[1], T1[2], T1[3], 1, false, "titulo")
+    yy = yy + 44
+    local ncol = #UI.grupos
+    local colW = cw / ncol
+    local fin = yy
+    for gi, g in ipairs(UI.grupos) do
+        local gx, gy = cx + (gi - 1) * colW, yy
+        R.Ficha(g[2], gx + 11, gy + 9, 22, false, A)
+        R.Text(gx + 30, gy + 1, g[1], 12, T1[1], T1[2], T1[3], 0.9, false, "negrita")
+        R.Rect(gx, gy + 26, colW - 24, 1, Cp[1], Cp[2], Cp[3], 0.10)
+        gy = gy + 38
+        for _, nom in ipairs(g[3]) do
+            local si = R.IndiceSeccion(nom)
+            if si then
+                local s = Secciones[si]
+                R.Enlace(gx, gy, s.nombre, 16, "negrita", R.IrSeccion, si, T1, A)
+                gy = gy + 30
+                local p = s.paneles[1]
+                if p then
+                    local sel = Seleccionables(p)
+                    for k = 1, min(4, #sel) do
+                        local it = p.items[sel[k]]
+                        local okL, lab = pcall(Texto, it.label)
+                        if okL and type(lab) == "string" then
+                            R.Enlace(gx, gy, Recortar(lab, 14, colW - 34), 14, nil, R.IrItem, si * 1000 + 100 + k, G, A)
+                            gy = gy + 26
+                        end
+                    end
+                end
+                gy = gy + 14
+            end
         end
+        fin = max(fin, gy)
     end
-    if Anim.lateralY then
-        local lx, ly = x + Anim.lateralX, y + Anim.lateralY
-        if Anim.lateralX < UI.lateral then
-            R.Rect(x, ly - 16, 3, 32, A[1], A[2], A[3], 1, 1.5)                          -- barra de color pegada al borde
+    yy = fin + 16
+
+    -- Consejo y novedades
+    local w2 = (cw - 20) / 2
+    local ch = 196
+    local T = UI.tarjeta
+    for k = 0, 1 do
+        local px = cx + k * (w2 + 20)
+        R.Rect(px, yy, w2, ch, T[1], T[2], T[3], 1, 16)
+        R.Borde(px, yy, w2, ch, Cp[1], Cp[2], Cp[3], UI.bordeA, 1, 16)
+    end
+    -- consejo (cambia solo cada 8 s; «Otro consejo» pasa al siguiente)
+    R.IconoDib("chispa", cx + 30, yy + 32, A, 1)
+    R.Text(cx + 48, yy + 22, "Consejo", 16, T1[1], T1[2], T1[3], 1, false, "negrita")
+    local nC = #UI.consejos
+    local iC = (floor(GetGameTimer() / 8000) + (UI.consejoExtra or 0)) % nC + 1
+    R.Parrafo(cx + 24, yy + 62, UI.consejos[iC], 15, w2 - 48, { G[1] + 0.15, G[2] + 0.15, G[3] + 0.15 }, 1, 23, 3)
+    for k = 1, nC do
+        local dx = cx + 24 + (k - 1) * 14
+        R.Circulo(dx + 3, yy + ch - 30, 3, true, k == iC and A[1] or G[1], k == iC and A[2] or G[2], k == iC and A[3] or G[3], k == iC and 1 or 0.45)
+    end
+    R.Boton(cx + w2 - 24 - 132, yy + ch - 46, 132, 32, "Otro consejo", "suave", A, function() UI.consejoExtra = (UI.consejoExtra or 0) + 1 end)
+    -- novedades
+    local nx = cx + w2 + 20
+    R.IconoDib("chispa", nx + 30, yy + 32, A, 1)
+    R.Text(nx + 48, yy + 22, "Novedades", 16, T1[1], T1[2], T1[3], 1, false, "negrita")
+    local ny = yy + 60
+    for k = 1, min(3, #UI.novedades) do
+        local n = UI.novedades[k]
+        local vw = Ancho(n[1], 12) + 16
+        R.Rect(nx + 24, ny, vw, 22, A[1], A[2], A[3], 0.16, 11)
+        R.Text(nx + 32, ny + 3, n[1], 12, A[1], A[2], A[3], 1, false, "negrita")
+        R.Text(nx + 24 + vw + 10, ny + 2, Recortar(n[2], 14, w2 - vw - 60), 14, T1[1], T1[2], T1[3], 0.9)
+        ny = ny + 32
+    end
+    R.Enlace(nx + 24, yy + ch - 40, "Ver todas las novedades  ›", 14, "negrita", R.IrNovedades, nil, A, A)
+    yy = yy + ch + 30
+
+    -- Pie
+    R.Rect(cx, yy, cw, 1, Cp[1], Cp[2], Cp[3], 0.08)
+    yy = yy + 16
+    R.Text(cx, yy, "SG Menu " .. VERSION .. "   ·   Interfaz dibujada con la API de Susano", 13, G[1], G[2], G[3], 1)
+    local pie = NombreTecla(TECLA_MENU) .. " abrir / cerrar   ·   Ctrl+F buscar   ·   Esc volver"
+    R.Text(cx + cw - Ancho(pie, 13), yy, pie, 13, G[1], G[2], G[3], 1)
+    return yy + 40 - y0
+end
+
+-- ── Página: Buscar ──
+UI.sugerencias = { "ropa", "freecam", "superman", "tatuajes", "matrícula", "color", "marcar", "agua", "atuendo", "velocidad" }
+function R.PagBuscar(cx, y0, cw, A)
+    local Cp, T1, G = UI.capa, UI.texto, UI.gris
+    local yy = y0
+    R.Text(cx, yy, "Buscar", 28, T1[1], T1[2], T1[3], 1, false, "titulo")
+    yy = yy + 50
+    local q = Menu.busqueda or ""
+    if q:gsub("%s", "") == "" then
+        yy = yy + R.Parrafo(cx, yy, "Escribe en el buscador de arriba. Busca en los nombres de todas las opciones y en su documentación; con Enter abres el primer resultado.",
+            15, cw, { G[1] + 0.12, G[2] + 0.12, G[3] + 0.12 }, 1, 22, 3) + 22
+        R.Text(cx, yy, "Prueba con", 14, T1[1], T1[2], T1[3], 0.9, false, "negrita")
+        yy = yy + 32
+        local xx = cx
+        for _, sgr in ipairs(UI.sugerencias) do
+            local w = Ancho(sgr, 14) + 32
+            if xx + w > cx + cw then xx = cx; yy = yy + 44 end
+            R.Boton(xx, yy, w, 34, sgr, "suave", A, function(h)
+                Menu.busqueda = h.dato; UI.cacheBusq = nil; Menu.escribiendo = UI.campoBusqueda
+            end, sgr)
+            xx = xx + w + 10
         end
-        R.Rect(lx - 22, ly - 22, 44, 44, A[1], A[2], A[3], Menu.col == 0 and 0.22 or 0.13, 13)  -- fondo del icono activo
+        return yy + 60 - y0
     end
-    local IC = UI.icono
-    for k = 1, #iconos do
-        local ic = iconos[k]
-        local cx, cy = x + ic.dx, y + ic.dy
-        local activo = (ic.i == Menu.seccion)
-        local s2 = Secciones[ic.i]
-        s2._a = s2._a and Suave(s2._a, activo and 1 or 0, 14) or (activo and 1 or 0)
-        colIcono[1], colIcono[2], colIcono[3] = Mix(IC[1], A[1], s2._a), Mix(IC[2], A[2], s2._a), Mix(IC[3], A[3], s2._a)
-        Icono(s2.icono, cx, cy, colIcono, 1, s2.engranaje and 22 or 24)
-        NuevoHit("seccion", cx - 22, cy - 22, 44, 44).i = ic.i
+    local res = R.Resultados()
+    R.Text(cx, yy, #res .. (#res == 1 and " resultado" or " resultados") .. " para «" .. q .. "»", 14, G[1], G[2], G[3], 1)
+    yy = yy + 34
+    if #res == 0 then
+        R.Text(cx, yy, "No hay nada con ese nombre. Prueba con otra palabra.", 15, T1[1], T1[2], T1[3], 0.9)
+        return yy + 60 - y0
     end
+    for i, r in ipairs(res) do
+        local rh = 66
+        if R.Visible(yy, rh) then
+            local enc = R.Encima(cx, yy, cw, rh - 8)
+            R.Rect(cx, yy, cw, rh - 8, Cp[1], Cp[2], Cp[3], enc and 0.08 or 0.035, 12)
+            if i == 1 then R.Borde(cx, yy, cw, rh - 8, A[1], A[2], A[3], 0.35, 1, 12) end
+            local s = Secciones[r.sec]
+            R.Ficha(s.icono, cx + 30, yy + 29, 34, enc, A)
+            local tt = Recortar(r.titulo, 16, cw * 0.5, "negrita")
+            R.Text(cx + 58, yy + 9, tt, 16, T1[1], T1[2], T1[3], 1, false, "negrita")
+            local etiqueta = s.nombre .. "  ·  " .. r.tipo
+            R.Text(cx + 58 + Ancho(tt, 16, "negrita") + 14, yy + 12, etiqueta, 12, A[1], A[2], A[3], 1)
+            if r.desc ~= "" then R.Text(cx + 58, yy + 33, Recortar(r.desc, 13, cw - 110), 13, G[1], G[2], G[3], 1) end
+            R.Text(cx + cw - 28, yy + 17, "›", 18, T1[1], T1[2], T1[3], enc and 1 or 0.4)
+            R.Hit(cx, yy, cw, rh - 8, R.AbrirResultado, r)
+        end
+        yy = yy + rh
+    end
+    return yy + 20 - y0
+end
 
-    -- Contenido de la sección (entra deslizando al cambiar)
-    R.ox = (1 - Anim.contenido) * 26 * Anim.dirTab
-    R.alpha = e * Anim.contenido
+-- ── Página: Novedades ──
+function R.PagNovedades(cx, y0, cw, A)
+    local Cp, T1, G = UI.capa, UI.texto, UI.gris
+    local yy = y0
+    R.Text(cx, yy, "Novedades", 28, T1[1], T1[2], T1[3], 1, false, "titulo")
+    yy = yy + 46
+    R.Text(cx, yy, "Lo último que ha cambiado en el menú.", 15, G[1], G[2], G[3], 1)
+    yy = yy + 40
+    local inicio = yy
+    for k, n in ipairs(UI.novedades) do
+        local vx = cx + 34
+        R.Circulo(cx + 8, yy + 11, k == 1 and 7 or 5, true, A[1], A[2], A[3], k == 1 and 1 or 0.7)
+        if k == 1 then R.Circulo(cx + 8, yy + 11, 12, true, A[1], A[2], A[3], 0.18) end
+        local vw = Ancho(n[1], 12) + 16
+        R.Rect(vx, yy, vw, 22, A[1], A[2], A[3], 0.16, 11)
+        R.Text(vx + 8, yy + 3, n[1], 12, A[1], A[2], A[3], 1, false, "negrita")
+        R.Text(vx + vw + 12, yy, n[2], 17, T1[1], T1[2], T1[3], 1, false, "negrita")
+        yy = yy + 34
+        for _, linea in ipairs(n[3]) do
+            R.Circulo(vx + 6, yy + 10, 2.2, true, G[1], G[2], G[3], 1)
+            yy = yy + R.Parrafo(vx + 18, yy, linea, 14, cw - 70, { G[1] + 0.14, G[2] + 0.14, G[3] + 0.14 }, 1, 21, 4) + 4
+        end
+        yy = yy + 22
+    end
+    R.Rect(cx + 7, inicio + 18, 2, yy - inicio - 50, Cp[1], Cp[2], Cp[3], 0.10)
+    return yy + 20 - y0
+end
 
-    -- Cabecera: ruta pequeña, título grande y línea de color
-    R.Text(x + 98, y + 22, sec.nombre, 13, UI.gris[1], UI.gris[2], UI.gris[3], 1)
-    R.Text(x + 98, y + 40, Texto(sec.sub), 22, UI.texto[1], UI.texto[2], UI.texto[3], 1, false, "negrita")
-    R.GradH(x + 98, y + 82, W - 98 - 34, 2, A[1], A[2], A[3], 0.75, A[1], A[2], A[3], 0.0, 1)
+-- ── Página: una sección (opciones + documentación) ──
+function R.PagSeccion(x, y, W, H, cx, ty, cw, A)
+    local Cp, T1, G = UI.capa, UI.texto, UI.gris
+    local s = SeccionActual()
+    -- migas de pan
+    local wI = R.Enlace(cx, ty, "Inicio", 13, nil, R.IrInicio, nil, G, A)
+    R.Text(cx + wI + 8, ty, "/", 13, G[1], G[2], G[3], 0.7)
+    R.Text(cx + wI + 22, ty, s.nombre, 13, T1[1], T1[2], T1[3], 0.8)
+    -- título, subtítulo y explicación
+    R.Text(cx, ty + 22, s.nombre, 28, T1[1], T1[2], T1[3], 1, false, "titulo")
+    local okS, sub = pcall(Texto, s.sub)
+    sub = (okS and type(sub) == "string") and sub or ""
+    if sub ~= "" then
+        local wt = Ancho(s.nombre, 28, "titulo")
+        sub = Recortar(sub, 13, cw - wt - 60)
+        local sw2 = Ancho(sub, 13) + 22
+        R.Rect(cx + wt + 16, ty + 30, sw2, 24, A[1], A[2], A[3], 0.15, 12)
+        R.Text(cx + wt + 27, ty + 34, sub, 13, A[1], A[2], A[3], 1)
+    end
+    local doc = UI.docSeccion[s.nombre]
+    if doc then R.Parrafo(cx, ty + 70, doc, 14, cw, { G[1] + 0.1, G[2] + 0.1, G[3] + 0.1 }, 1, 20, 2) end
 
-    -- Paneles (dos columnas)
+    -- columnas: opciones (1 o 2 paneles) + documentación
+    local py = ty + 120
+    local altoDisp = (y + H) - py - 22
+    UI.altoPanel = altoDisp
+    local wd, gap = min(310, floor(cw * 0.32)), 16
+    local wp = cw - wd - gap
+    local p1, p2 = s.paneles[1], s.paneles[2]
+    local w1 = p2 and floor((wp - gap) * 0.47) or wp
     local ffx, ffy, ffw, ffh
-    local paneles = sec.paneles
-    local p1, p2 = paneles[1], paneles[2]
     if p1 then
-        local fx, fy, fw, fh = DibujarPanel(p1, 1, x + 96, y + 104, 354, A, Menu.pos[1])
+        local fx, fy, fw, fh = DibujarPanel(p1, 1, cx, py, w1, A, Menu.pos[1])
         if Menu.col == 1 then ffx, ffy, ffw, ffh = fx, fy, fw, fh end
         if p2 then
-            fx, fy, fw, fh = DibujarPanel(p2, 2, x + 462, y + 104, 354, A, Menu.pos[2])
+            fx, fy, fw, fh = DibujarPanel(p2, 2, cx + w1 + gap, py, wp - gap - w1, A, Menu.pos[2])
             if Menu.col == 2 then ffx, ffy, ffw, ffh = fx, fy, fw, fh end
         end
     end
-
-    -- Marca de foco del teclado (se desliza entre opciones y paneles)
+    -- marca del foco del teclado (se desliza entre opciones)
     if ffx then
         local fx, fy = ffx - x, ffy - y
         local Fo = Anim.foco
@@ -10614,40 +11371,177 @@ local function DibujarMenu(sw, sh)
         Fo.x, Fo.y = Suave(Fo.x, fx, 20), Suave(Fo.y, fy, 20)
         Fo.w, Fo.h = Suave(Fo.w, ffw, 20), Suave(Fo.h, ffh, 20)
         R.Rect(x + Fo.x - 8, y + Fo.y + 6, 3, Fo.h - 12, A[1], A[2], A[3], 1, 1.5)
-        R.Rect(x + Fo.x - 10, y + Fo.y + 4, 7, Fo.h - 8, A[1], A[2], A[3], 0.18, 3.5)
     else
         Anim.foco = nil
     end
+    R.Docs(cx + wp + gap, py, wd, altoDisp, A, s)
+    return altoDisp + 120
+end
 
-    -- Barra de estado: descripción de la opción con el foco
-    local it = ItemFoco()
-    local texto
-    if Menu.esperandoTecla then
-        texto = "Pulsa la tecla nueva. Esc para cancelar."
-    elseif Menu.escribiendo then
-        texto = "Escribiendo (el juego no recibe el teclado)  ·  Enter o Esc para terminar  ·  Supr borra todo"
-    elseif Config.descripciones and it and it.desc then
-        texto = it.desc
-        if type(texto) == "function" then texto = texto() end
+-- ── La página entera ──
+local function DibujarMenu(sw, sh)
+    local e = EaseOut(Anim.open)
+    local A = Acento()
+    local Tm = UI.Tema()
+    EmpezarHits()
+    Menu.pagina = Menu.pagina or "inicio"
+    local clave = (Menu.pagina == "seccion") and ("s" .. Menu.seccion) or Menu.pagina
+    if clave ~= Anim.ultimaTab then
+        Anim.dirTab, Anim.contenido, Anim.ultimaTab = Menu.dirSec or 1, 0, clave
+        Menu.scrollObj, Menu.scroll = 0, 0
     end
-    texto = texto or "Flechas: moverte   ·   Enter: elegir   ·   Esc: atrás   ·   " .. NombreTecla(TECLA_MENU) .. ": cerrar"
-    local clave = texto or ""
-    if clave ~= Anim.descIdx then Anim.descIdx, Anim.descA = clave, 0 end
-    Anim.descA = Suave(Anim.descA, 1, 14)
-    R.alpha, R.ox = e, 0
-    R.Rect(x + 96, y + H - 46, W - 96 - 34, 30, 1, 1, 1, 0.045, 11)
-    if texto then
-        R.alpha = e * Anim.descA
-        R.ox = (1 - Anim.descA) * 8
-        R.Circulo(x + 112, y + H - 31, 3, true, A[1], A[2], A[3], 1)
-        R.Text(x + 124, y + H - 40, PrimeraLinea(texto), 13, UI.gris[1] + 0.2, UI.gris[2] + 0.2, UI.gris[3] + 0.2, 1)
-    end
-    R.alpha, R.ox = e, 0
-    R.Text(x + W - 30 - Ancho(VERSION, 12), y + H - 38, VERSION, 12, UI.gris[1], UI.gris[2], UI.gris[3], 0.8)
+    Anim.contenido = Suave(Anim.contenido, 1, 12)
 
-    -- Cursor propio en el overlay (el de GTA quedaría tapado por la ventana)
+    local W, H = min(1240, sw - 60), min(760, sh - 60)
+    UI.w, UI.h = W, H
+    Config.ventanaX = Clamp(Config.ventanaX, -(sw - W) / 2 - W + 140, (sw - W) / 2 + W - 140)
+    Config.ventanaY = Clamp(Config.ventanaY, -(sh - H) / 2, (sh - H) / 2 + H - 60)
+    local x = floor((sw - W) / 2 + Config.ventanaX)
+    local y = floor((sh - H) / 2 + Config.ventanaY + 24 * (1 - e))
+    local LW, TH = 228, 66
+    local Cp, T1, G = UI.capa, UI.texto, UI.gris
+    UI.visArriba, UI.visAbajo = nil, nil
+    NuevoHit("mover", x + LW, y, W - LW, TH)
+    R.alpha, R.ox = e, 0
+
+    -- Fondo de la página
+    R.Sombra(x, y, W, H, 14, 1.1)
+    R.Rect(x, y, W, H, Tm.fondo[1], Tm.fondo[2], Tm.fondo[3], 1, 14)
+
+    -- Contenido (con scroll y recortado debajo de la barra superior)
+    local top, altoVis = y + TH, H - TH
+    local cx, cw = x + LW + 32, W - LW - 64
+    UI.visArriba, UI.visAbajo = top, y + H
+    local recorte = R.Clip(x + LW + 1, top, W - LW - 2, altoVis - 1)
+    R.ox = (1 - Anim.contenido) * 22 * (Anim.dirTab or 1)
+    R.alpha = e * Anim.contenido
+    local pag = Menu.pagina
+    local scroll = Menu.scroll or 0
+    local alto
+    if pag == "seccion" then
+        alto = R.PagSeccion(x, y, W, H, cx, top + 22, cw, A)
+    elseif pag == "buscar" then
+        alto = R.PagBuscar(cx, top + 26 - scroll, cw, A)
+    elseif pag == "novedades" then
+        alto = R.PagNovedades(cx, top + 26 - scroll, cw, A)
+    else
+        alto = R.PagInicio(cx, top + 26 - scroll, cw, A)
+    end
+    R.ox, R.alpha = 0, e
+    if recorte then R.FinClip() end
+    UI.visArriba, UI.visAbajo = nil, nil
+
+    -- Scroll de la página con la rueda
+    if pag ~= "seccion" then
+        local maxS = max(0, (alto or 0) - altoVis + 40)
+        if Raton.rueda and Raton.rueda ~= 0 and R.Encima(x + LW, top, W - LW, altoVis) then
+            Menu.scrollObj = (Menu.scrollObj or 0) + Raton.rueda * 90
+            Raton.rueda = 0
+        end
+        Menu.scrollObj = Clamp(Menu.scrollObj or 0, 0, maxS)
+        Menu.scroll = Suave(Menu.scroll or 0, Menu.scrollObj, 14)
+        if maxS > 0 then
+            local th = max(altoVis * altoVis / (alto + 40), 30)
+            local tyb = top + 6 + (altoVis - 12 - th) * (Menu.scroll / maxS)
+            R.Rect(x + W - 8, tyb, 3, th, Cp[1], Cp[2], Cp[3], 0.25, 1.5)
+        end
+    end
+
+    -- Barra superior: buscador, novedades, tema y cerrar
+    R.Rect(x + LW, top - 1, W - LW, 1, Cp[1], Cp[2], Cp[3], Tm.borde)
+    local bw = min(560, W - LW - 360)
+    local bx = x + LW + 32
+    R.Buscador(bx, y + 14, bw, 38, A)
+    R.BotonIcono(x + W - 52, y + 15, 36, "cerrar", R.Cerrar, A)
+    R.BotonIcono(x + W - 94, y + 15, 36, (Config.tema == 2) and "luna" or "sol", R.CambiarTema, A)
+    do
+        local tn = "Novedades"
+        local wn = Ancho(tn, 14, "negrita") + 30 + Ancho("Nuevo", 11) + 16
+        local nx = x + W - 106 - wn
+        local enc = R.Encima(nx, y + 16, wn, 34)
+        R.Rect(nx, y + 16, wn, 34, Cp[1], Cp[2], Cp[3], enc and 0.11 or 0.055, 17)
+        R.Text(nx + 16, y + 23, tn, 14, T1[1], T1[2], T1[3], 1, false, "negrita")
+        local bxN = nx + 16 + Ancho(tn, 14, "negrita") + 8
+        R.Rect(bxN, y + 23, Ancho("Nuevo", 11) + 12, 20, 0.93, 0.28, 0.55, 0.22, 6)
+        R.Text(bxN + 6, y + 25, "Nuevo", 11, 1.0, 0.45, 0.70, 1, false, "negrita")
+        R.Hit(nx, y + 16, wn, 34, R.IrNovedades)
+    end
+
+    -- Barra lateral
+    local L = Tm.lateral
+    R.Rect(x, y, LW, H, L[1], L[2], L[3], 1, 14)
+    R.Rect(x + LW - 14, y, 14, H, L[1], L[2], L[3], 1)
+    R.Rect(x + LW, y, 1, H, Cp[1], Cp[2], Cp[3], Tm.borde)
+    R.Rect(x + 18, y + 15, 36, 36, A[1], A[2], A[3], 1, 11)
+    if not R.Imagen("logo", x + 21, y + 18, 30, 30, 1, 1, 1, 1) then R.TextC(x + 36, y + 22, "SG", 15, 1, 1, 1, 1, "titulo") end
+    R.Text(x + 66, y + 22, "SG Menu", 18, T1[1], T1[2], T1[3], 1, false, "negrita")
+    local vw = Ancho(VERSION, 11) + 12
+    R.Rect(x + 66 + Ancho("SG Menu", 18, "negrita") + 8, y + 26, vw, 18, A[1], A[2], A[3], 0.16, 6)
+    R.Text(x + 72 + Ancho("SG Menu", 18, "negrita") + 8, y + 28, VERSION, 11, A[1], A[2], A[3], 1)
+    -- botón grande de buscar (como «Crear»)
+    do
+        local bx2, by2, bw2 = x + 16, y + 76, LW - 32
+        local enc = R.Encima(bx2, by2, bw2, 42)
+        R.Rect(bx2, by2, bw2, 42, A[1], A[2], A[3], enc and 1 or 0.9, 12)
+        R.IconoDib("lupa", bx2 + 24, by2 + 21, UI.blanco, 1)
+        R.Text(bx2 + 44, by2 + 11, "Buscar", 15, UI.blanco[1], UI.blanco[2], UI.blanco[3], 1, false, "negrita")
+        R.Text(bx2 + bw2 - 14 - Ancho("Ctrl+F", 12), by2 + 13, "Ctrl+F", 12, 1, 1, 1, 0.75)
+        R.Hit(bx2, by2, bw2, 42, R.EmpezarBusqueda)
+    end
+    -- entradas fijas
+    local ny = y + 134
+    local function Entrada(icono, txt, activo, fn)
+        local ex, ew = x + 12, LW - 24
+        local enc = R.Encima(ex, ny, ew, 36)
+        if activo then R.Rect(ex, ny, ew, 36, A[1], A[2], A[3], 0.15, 10)
+        elseif enc then R.Rect(ex, ny, ew, 36, Cp[1], Cp[2], Cp[3], 0.06, 10) end
+        local c = activo and A or T1
+        R.IconoDib(icono, ex + 22, ny + 18, c, 1, L)
+        R.Text(ex + 44, ny + 8, txt, 14, c[1], c[2], c[3], 1, false, activo and "negrita" or nil)
+        R.Hit(ex, ny, ew, 36, fn)
+        ny = ny + 38
+    end
+    Entrada("casa", "Inicio", pag == "inicio", R.IrInicio)
+    Entrada("lupa", "Buscar", pag == "buscar", R.EmpezarBusqueda)
+    Entrada("chispa", "Novedades", pag == "novedades", R.IrNovedades)
+    ny = ny + 10
+    R.Text(x + 26, ny, "HERRAMIENTAS", 11, G[1], G[2], G[3], 1, false, "negrita")
+    ny = ny + 24
+    -- secciones
+    local pie = y + H - 58
+    local rh = Clamp((pie - 10 - ny) / #Secciones, 26, 36)
+    for i, s in ipairs(Secciones) do
+        local ex, ew = x + 12, LW - 24
+        local activo = (pag == "seccion" and Menu.seccion == i)
+        local enc = R.Encima(ex, ny, ew, rh - 2)
+        if activo then
+            R.Rect(ex, ny, ew, rh - 2, A[1], A[2], A[3], 0.15, 10)
+            if Menu.col == 0 then R.Borde(ex, ny, ew, rh - 2, A[1], A[2], A[3], 0.6, 1, 10) end
+        elseif enc then
+            R.Rect(ex, ny, ew, rh - 2, Cp[1], Cp[2], Cp[3], 0.06, 10)
+        end
+        R.Ficha(s.icono, ex + 22, ny + (rh - 2) / 2, min(26, rh - 8), activo, A)
+        local c = activo and A or T1
+        R.Text(ex + 44, ny + (rh - 2) / 2 - 10, s.nombre, 14, c[1], c[2], c[3], 1, false, activo and "negrita" or nil)
+        NuevoHit("seccion", ex, ny, ew, rh - 2).i = i
+        ny = ny + rh
+    end
+    -- modo claro / oscuro
+    do
+        local ex, ew = x + 12, LW - 24
+        R.Rect(ex, pie, ew, 42, Cp[1], Cp[2], Cp[3], 0.05, 12)
+        local claro = Config.tema == 2
+        R.IconoDib(claro and "sol" or "luna", ex + 22, pie + 21, T1, 1, L)
+        R.Text(ex + 44, pie + 12, claro and "Modo claro" or "Modo oscuro", 14, T1[1], T1[2], T1[3], 1)
+        local sx, sy = ex + ew - 50, pie + 11
+        local a = claro and 1 or 0
+        R.Rect(sx, sy, 38, 20, Mix(UI.pistaOff[1], A[1], a), Mix(UI.pistaOff[2], A[2], a), Mix(UI.pistaOff[3], A[3], a), 1, 10)
+        R.Circulo(sx + 10 + 18 * a, sy + 10, 7, true, 1, 1, 1, 1)
+        R.Hit(ex, pie, ew, 42, R.CambiarTema)
+    end
+
+    -- Cursor propio en el overlay
     if Menu.abierto then DibujarCursor(Raton.x, Raton.y) end
-
     R.alpha, R.ox = 1, 0
 end
 
@@ -10697,6 +11591,7 @@ end
 local function DibujarDentro()
     R.Begin()
     R.alpha, R.ox = 1, 0
+    UI.Tema()
     local w, h = R.Pantalla()
     Extras.DibujarMarcas()
     R.DibujarMundo()

@@ -1,0 +1,1 @@
+Capturas aproximadas de la interfaz tipo página (v11.2): render de las órdenes de dibujo de Susano con fondo y fuente simulados.
