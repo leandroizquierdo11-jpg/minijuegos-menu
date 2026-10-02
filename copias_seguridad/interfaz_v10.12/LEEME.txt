@@ -1,0 +1,5 @@
+Copia de seguridad de la interfaz actual (v10.12).
+- cargar_coches_v10.12.lua : el script completo tal y como estaba cuando funcionaba esta interfaz.
+- interfaz_general.png     : render aproximado de la pestaña General.
+Para volver: copia cargar_coches_v10.12.lua encima de cargar_coches.lua,
+o en git:  git checkout copia-interfaz-v10.12 -- cargar_coches.lua
