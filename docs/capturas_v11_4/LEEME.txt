@@ -1,0 +1,1 @@
+Capturas aproximadas de Surge v11.4 (blanco y negro, selector de color, teclas al lado de cada opción). Render de las órdenes de dibujo de Susano con fondo y fuente simulados.
