@@ -1,5 +1,6 @@
--- cargar_coches.lua  ·  v11.0
+-- cargar_coches.lua  ·  v11.1
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v11.1: FREECAM propia (Susano.LockCameraPos / SetCameraPos): tecla F6, W A S D + Espacio/Ctrl + Shift/Alt, mira en el centro; marcar objetivos y coger coches desde lejos
 --   v11.0: INTERFAZ NUEVA, TODO CON SUSANO · ventana de cristal oscuro (desenfoque, degradados, sombras, interruptores, sliders con tirador,
 --          scroll con recorte) · ya no se usa el dibujo de GTA (ni DrawRect, ni texto, ni notificaciones, ni DrawMarker, ni contorno):
 --          avisos como tarjetas arriba a la derecha · flechas y aros del mundo y contorno del coche (caja 3D) en el overlay ·
@@ -123,6 +124,7 @@ local Config = {
     supermanRadio  = 60.0,   -- hasta qué distancia se buscan coches (m)
     supermanFuerza = 60.0,   -- velocidad a la que salen al lanzarlos (m/s)
     supermanModo   = 1,      -- 1 = lanzar todos a la vez · 2 = de uno en uno (y el anillo se rellena)
+    freecamVel     = 15.0,   -- velocidad de la freecam (m/s); Shift = ×4, Alt = ÷4
     colorContorno  = { 60, 180, 255, 255 },
 }
 
@@ -141,6 +143,7 @@ local binds = {
     { id = "superLanzar",  nombre = "Superman: lanzar",                 tecla = 0x47 }, -- G
     { id = "superOrbitar", nombre = "Superman: orbitar en objetivo",    tecla = 0x4F }, -- O
     { id = "superMontar", nombre = "Superman: forzar control (montarse)", tecla = 0x4D }, -- M
+    { id = "freecam", nombre = "Freecam (activar / desactivar)", tecla = 0x75 }, -- F6
 }
 local TECLA_MENU   = 0x79 -- F10
 
@@ -170,6 +173,7 @@ local teclasBloqueadas = { [0x01] = true, [0x02] = true, [TECLA_MENU] = true }
 -- ═════════════════════════════════════════════════════════
 local vehiculo = nil   -- coche que llevamos
 local apuntado = nil   -- coche resaltado
+local Cam = { activa = false }   -- freecam propia (con Susano.LockCameraPos / SetCameraPos)
 local manoLocal = nil  -- posición medida de las manos respecto al personaje
 local ultimoVeh = nil  -- último coche soltado/lanzado
 local bloqueoEntrarHasta = 0
@@ -325,6 +329,7 @@ end
 -- ¿La cámara está lejos de tu personaje? (freecam de Susano o cualquier otra)
 local camLejos = { t = -1, v = false }
 local function CamaraLejos(ped)
+    if Cam.activa then return true end
     local ahora = GetGameTimer()
     if ahora - camLejos.t < 100 then return camLejos.v end
     camLejos.t = ahora
@@ -1145,7 +1150,6 @@ local PROPS = { 0, 1, 2, 6, 7 }
 -- Accesorio caído al hacer ragdoll o caer → se repone.
 Ropa.fijar, Ropa.fija = false, nil
 local AdoptarTatuajes, ReponerTatuajes, ReponerApariencia   -- se definen más abajo, junto a los tatuajes y la cara
-local ROPA_DE_GOLPE = 5   -- a partir de cuántas prendas cambiadas a la vez se considera un "reseteo"
 
 local function FotoRopa(p)
     local f = { modelo = GetEntityModel(p), comp = {}, prop = {} }
@@ -3976,21 +3980,6 @@ local function Marca(p, marcado)
     end
 end
 
--- Marcas en el overlay (tamaño fijo en pantalla: se ven aunque estés lejos con la freecam)
-local function MarcaOverlay(p, marcado, nombre, A)
-    local c = GetEntityCoords(p)
-    local en, sx, sy = APantalla(c.x, c.y, c.z + 1.05)
-    if not en then return end
-    if marcado then
-        R.Rect(sx - 8, sy - 22, 16, 16, 0, 0, 0, 0.55, 8)
-        R.Rect(sx - 6, sy - 20, 12, 12, A[1], A[2], A[3], 1, 6)
-        if nombre then R.TextC(sx, sy - 44, nombre, 13, 1, 1, 1, 0.95) end
-    else
-        R.Rect(sx - 6, sy - 20, 12, 12, 0, 0, 0, 0.55, 6)
-        R.Rect(sx - 4, sy - 18, 8, 8, 1, 1, 1, 0.95, 4)
-    end
-end
-
 function Extras.DibujarMarcas()
     if not Extras.hayMarcas then return end
     local A = (COLORES[Config.colorMenu] or COLORES[1])[2]
@@ -5189,6 +5178,8 @@ local Secciones = {
             Accion("Soltar ahora",
                 function() if vehiculo then Soltar(); Avisar("Vehículo soltado") else Avisar("No llevas ningún vehículo") end end,
                 "Deja en el suelo, delante de ti, el vehículo que llevas."),
+            Accion("Freecam: activar / desactivar", function() Cam.Alternar() end,
+                "Vuela con la cámara (W A S D, Espacio, Ctrl, Shift) y marca objetivos o coge coches desde lejos. Tu personaje se queda quieto."),
         } },
         { titulo = "Ajustes", items = {
             Slider("Alcance", "alcance", 4, 40, 1, "%.0f m", "Distancia máxima para coger un vehículo apuntándolo."),
@@ -5197,6 +5188,8 @@ local Secciones = {
             Slider("Fuerza de lanzamiento", "fuerzaLanzar", 5, 100, 5, "%.0f", "Velocidad con la que sale al lanzarlo."),
             Slider("Ajuste de altura", "ajusteAltura", -0.6, 0.6, 0.05, "%+.2f m",
                 "Sube o baja el vehículo sobre tus manos. Se aplica al momento."),
+            Slider("Velocidad de la freecam", "freecamVel", 2, 150, 1, "%.0f m/s",
+                "Lo que tarda en moverse la cámara libre. Shift la multiplica por 4 y Alt la divide por 4."),
         } },
     } },
     { nombre = "Tuneo", icono = "llave", paneles = { panelCategorias, panelOpciones },
@@ -10042,7 +10035,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v11.0"
+local VERSION = "v11.1"
 
 local UI = {
     w = 850, h = 597, lateral = 72,
@@ -10120,7 +10113,6 @@ local function PrimeraLinea(txt)
 end
 
 local GRIS_CAMPO = { UI.gris[1] + 0.15, UI.gris[2] + 0.15, UI.gris[3] + 0.15 }
-local AMARILLO_AVISO = { 1.0, 0.82, 0.35 }
 
 -- Dibuja una opción y devuelve su rectángulo (x, y, ancho, alto): es a la vez el "de foco" y el clicable
 local function DibujarItem(it, px, pw, iy, foco, A)
@@ -10423,6 +10415,25 @@ function R.DibujarError(sw, sh)
     R.Text(30, 22, txt, 13, 1, 0.78, 0.80, 1)
 end
 
+-- ── Freecam: mira en el centro y barra de ayuda arriba ──
+function R.DibujarFreecam(sw, sh)
+    local A = Acento()
+    local cx, cy = sw / 2, sh / 2
+    for _, o in ipairs({ { -14, -5 }, { 5, 14 } }) do       -- cruz con hueco en el centro
+        R.Linea(cx + o[1], cy, cx + o[2], cy, 0, 0, 0, 0.6, 4)
+        R.Linea(cx, cy + o[1], cx, cy + o[2], 0, 0, 0, 0.6, 4)
+        R.Linea(cx + o[1], cy, cx + o[2], cy, A[1], A[2], A[3], 1, 2)
+        R.Linea(cx, cy + o[1], cx, cy + o[2], A[1], A[2], A[3], 1, 2)
+    end
+    R.Circulo(cx, cy, 1.6, true, 1, 1, 1, 1)
+    local linea = "FREECAM   ·   W A S D mover   ·   Espacio / Ctrl subir y bajar   ·   Shift rápido   ·   "
+        .. K("fijarAgua") .. " marcar   ·   " .. K("freecam") .. " salir"
+    local w = Ancho(linea, 14) + 40
+    R.Pildora(cx - w / 2, 24, w, 34, A, nil)
+    R.Circulo(cx - w / 2 + 18, 41, 3.5, true, A[1], A[2], A[3], 1)
+    R.TextC(cx + 6, 32, linea, 14, UI.texto[1], UI.texto[2], UI.texto[3], 1)
+end
+
 -- ── Cuadro de texto (matrícula...) ──
 function R.DibujarPrompt(sw, sh)
     local p = Menu.prompt
@@ -10690,6 +10701,7 @@ local function DibujarDentro()
     Extras.DibujarMarcas()
     R.DibujarMundo()
     if Config.contorno and apuntado and DoesEntityExist(apuntado) then R.CajaEntidad(apuntado, Acento()) end
+    if Cam.activa then R.DibujarFreecam(w, h) end
     if Super.activo then Super.Dibujar(w, h) end
     if dibujarHud then DibujarHUDJuego(w, h) end
     if Anim.open > 0 then DibujarMenu(w, h) end
@@ -10705,7 +10717,7 @@ local function DibujarTodo()
     if Anim.open < 0.002 then Anim.open = 0 end
     Anim.hud = Suave(Anim.hud, Menu.abierto and 0.0 or 1.0, 10)
     dibujarHud = (Config.ayudaHud or Pos.activo) and Anim.hud >= 0.01
-    local hay = dibujarHud or Anim.open > 0 or Extras.hayMarcas or Super.activo or #R.mundo > 0 or #R.toasts > 0
+    local hay = dibujarHud or Anim.open > 0 or Extras.hayMarcas or Super.activo or Cam.activa or #R.mundo > 0 or #R.toasts > 0
         or Menu.prompt ~= nil or R.errorTxt ~= nil or (Config.contorno and apuntado ~= nil)
 
     -- Menú cerrado y sin ayuda en pantalla: una vez enviado un frame vacío, no se toca el overlay
@@ -10802,9 +10814,104 @@ local function BloquearControlesMenu()
     for i = 1, #CONTROLES_MENU do DisableControlAction(0, CONTROLES_MENU[i], true) end
 end
 
+-- ═════════════════════════════════════════════════════════
+-- FREECAM
+--   Bloquea la cámara del juego (Susano.LockCameraPos) y la mueve tú (Susano.SetCameraPos).
+--   W A S D mover · Espacio o E subir · Ctrl o Q bajar · Shift más rápido · Alt más lento · ratón para mirar.
+--   Tu personaje se queda quieto (y a salvo). Con la freecam puesta, marcar objetivos (Superman, manguera)
+--   y coger coches funciona por lo que ves en pantalla, estés donde estés.
+-- ═════════════════════════════════════════════════════════
+function Cam.Disponible()
+    return type(Susano) == "table" and type(Susano.LockCameraPos) == "function" and type(Susano.SetCameraPos) == "function"
+end
+
+function Cam.Encender()
+    if Cam.activa then return end
+    if not Cam.Disponible() then Avisar("Esta versión de Susano no tiene LockCameraPos / SetCameraPos"); return end
+    local ped = PlayerPedId()
+    if IsPedDeadOrDying(ped, true) then return end
+    if IsPedInAnyVehicle(ped, false) then Avisar("Bájate del vehículo para usar la freecam"); return end
+    if Pos and Pos.activo then Avisar("Deja de controlar al NPC para usar la freecam"); return end
+    if vehiculo then Soltar() end
+    local c = GetFinalRenderedCamCoord()
+    Cam.x, Cam.y, Cam.z = c.x, c.y, c.z
+    Cam.vx, Cam.vy, Cam.vz = 0.0, 0.0, 0.0
+    Cam.ped, Cam.proxFoco = ped, 0
+    FreezeEntityPosition(ped, true)
+    if Config.protegerCuerpo then SetEntityInvincible(ped, true) end
+    Susano.LockCameraPos(true)
+    Susano.SetCameraPos(Cam.x, Cam.y, Cam.z)
+    Cam.activa = true
+    Avisar("Freecam activada  ·  " .. NombreTecla(TeclaDe("freecam")) .. " para salir")
+end
+
+function Cam.Apagar()
+    if not Cam.activa then return end
+    Cam.activa = false
+    pcall(Susano.LockCameraPos, false)
+    pcall(ClearFocus)
+    local ped = PlayerPedId()
+    FreezeEntityPosition(ped, false)
+    if Config.protegerCuerpo then SetEntityInvincible(ped, false) end
+    Avisar("Freecam desactivada")
+end
+
+function Cam.Alternar()
+    if Cam.activa then Cam.Apagar() else Cam.Encender() end
+end
+
+function Cam.Tecla(vk) return (Tecla(vk)) and 1.0 or 0.0 end
+
+-- Cada frame con la freecam puesta
+function Cam.Frame(ped)
+    if PlayerPedId() ~= Cam.ped or IsPedDeadOrDying(ped, true) or IsPedInAnyVehicle(ped, false) or (Pos and Pos.activo) then
+        Cam.Apagar()
+        return
+    end
+    local dt = Clamp(GetFrameTime(), 0.001, 0.1)
+    local libre = not Menu.abierto and not Menu.prompt and not Menu.escribiendo
+    local tx, ty, tz = 0.0, 0.0, 0.0
+    if libre then
+        -- el personaje no reacciona a nada; solo se puede mirar con el ratón
+        DisableAllControlActions(0)
+        EnableControlAction(0, 1, true); EnableControlAction(0, 2, true)
+        EnableControlAction(0, 199, true); EnableControlAction(0, 200, true)
+        local f = DirCamara()
+        local rx, ry = f.y, -f.x
+        local rn = math.sqrt(rx * rx + ry * ry)
+        if rn > 0.0001 then rx, ry = rx / rn, ry / rn else rx, ry = 1.0, 0.0 end
+        local adelante = Cam.Tecla(0x57) - Cam.Tecla(0x53)
+        local lado     = Cam.Tecla(0x44) - Cam.Tecla(0x41)
+        local altura   = math.max(Cam.Tecla(0x20), Cam.Tecla(0x45)) - math.max(Cam.Tecla(0x11), Cam.Tecla(0x51))
+        local vel = Config.freecamVel
+        if Cam.Tecla(0x10) > 0 then vel = vel * 4.0 elseif Cam.Tecla(0x12) > 0 then vel = vel * 0.25 end
+        tx = (f.x * adelante + rx * lado) * vel
+        ty = (f.y * adelante + ry * lado) * vel
+        tz = (f.z * adelante + altura) * vel
+    end
+    -- suave: la cámara acelera y frena en vez de moverse a saltos
+    local k = 1.0 - math.exp(-dt * 12.0)
+    Cam.vx, Cam.vy, Cam.vz = Cam.vx + (tx - Cam.vx) * k, Cam.vy + (ty - Cam.vy) * k, Cam.vz + (tz - Cam.vz) * k
+    Cam.x, Cam.y, Cam.z = Cam.x + Cam.vx * dt, Cam.y + Cam.vy * dt, Cam.z + Cam.vz * dt
+    Susano.SetCameraPos(Cam.x, Cam.y, Cam.z)
+    -- que el mundo cargue donde está la cámara
+    local ahora = GetGameTimer()
+    if ahora >= Cam.proxFoco then
+        Cam.proxFoco = ahora + 400
+        SetFocusPosAndVel(Cam.x, Cam.y, Cam.z, 0.0, 0.0, 0.0)
+    end
+end
+
 local function Frame()
     local ped = PlayerPedId()
     Teclas.NuevoFrame()
+    -- Freecam: la tecla la activa y desactiva; con ella puesta, la cámara se mueve aquí
+    local kf = TeclaDe("freecam")
+    if kf and not Menu.escribiendo and not Menu.prompt and not Menu.esperandoTecla then
+        local _, pf = Tecla(kf)
+        if pf then Cam.Alternar() end
+    end
+    if Cam.activa then Cam.Frame(ped) end
 
     -- Escribiendo con el teclado de GTA (p. ej. la matrícula): no procesar teclas
     if Tuneo.escribiendo then Menu.ProcesarPrompt(); Super.Frame(ped, false, false); DibujarTodo(); return end
@@ -10880,6 +10987,7 @@ Citizen.Limpieza = function()
     pcall(function() if Super.activo and Super.SoltarTodos then Super.SoltarTodos(me, GetGameTimer(), true) end end)
     pcall(function() Extras.PararAgua() end)
     pcall(function() if apuntado then Contorno(apuntado, false); apuntado = nil end end)
+    pcall(function() Cam.Apagar() end)
     pcall(function() ClearFocus() end)
     pcall(function() FreezeEntityPosition(me, false) end)
     pcall(function() StopAnimTask(me, ANIM_CARGAR.dict, ANIM_CARGAR.name, 2.0) end)
