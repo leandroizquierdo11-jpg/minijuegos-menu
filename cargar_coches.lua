@@ -1,5 +1,9 @@
--- cargar_coches.lua  ·  Surge v11.6
+-- cargar_coches.lua  ·  Surge v11.7
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v11.7: arreglo: el agua de la freecam petaba (StartNetworkedParticleFxLoopedAtCoord no existe en FiveM) y solo
+--          salían géiseres · ahora dispara el cañón de verdad del camión de bomberos invisible, colocado en la línea
+--          cámara → objetivo (≤ 7 m del objetivo) · al soltar el camión espera 4 s (el siguiente chorro sale al
+--          instante) · el rayo de la mira ignora el camión · manguera por defecto: solo cañón (sin géiseres)
 --   v11.6: GUERRA DE AGUA · el camión del cañón aparece con Susano.CreateSpoofedVehicle (y si no, el normal) e
 --          invisible para todos (SetEntityAlpha 0) · el agua le da al coche de los marcados y lo empuja con la
 --          física del agua del juego (sincronizada, sin daño) · herramientas de la freecam: Agua (mantener) y Marcar
@@ -132,7 +136,7 @@ local Config = {
     ventanaY       = 0,
     patadasMoto    = false,  -- poder pegar patadas desde la moto siempre (aunque esté bloqueado)
     manguera       = false,  -- echar agua como el camión de bomberos, sin camión
-    tipoAgua       = 1,      -- 1 cañón real + boca de incendios, 2 solo cañón real, 3 solo boca de incendios
+    tipoAgua       = 2,      -- 1 cañón real + boca de incendios, 2 solo cañón real, 3 solo boca de incendios
     alcanceAgua    = 20.0,   -- hasta dónde llega el agua (m)
     -- ── Modo Superman ──────────────────────────────────────
     superman       = false,  -- modo Superman: recoger los coches de la zona y levitarlos sobre tu cabeza
@@ -4307,41 +4311,93 @@ function Extras.PararAgua()
     Extras.QuitarCamion()
 end
 
--- Agua desde la freecam: cae en el punto que miras (o en el coche de la persona que apuntas).
--- Es el agua a presión del juego (sincronizada, sin daño). origen = la cámara, para dibujar el chorro.
+-- Soltar el clic en la freecam: el cañón deja de disparar pero el camión se queda unos segundos,
+-- así al volver a apretar sale el chorro al instante (si no, se quita solo en Extras.Frame)
+function Extras.PausarAgua()
+    local A, C = Extras.agua, Extras.camion
+    A.echando = false
+    A.pausaHasta = GetGameTimer() + 4000
+    if C.drv and DoesEntityExist(C.drv) then ClearPedTasks(C.drv) end
+    C.tareaDe = nil
+end
+
+-- Agua desde la freecam con el cañón de verdad del camión de bomberos (invisible).
+-- El camión se coloca en la línea cámara → objetivo, como mucho a 7 m del objetivo, así el chorro
+-- sale desde donde miras y no falla. Va pegado a tu personaje (como en la manguera normal), con la
+-- posición calculada en sus coordenadas, porque así el cañón dispara bien.
+-- Si el servidor no deja crear el camión, de respaldo: agua a presión en el punto.
 function Extras.AguaEn(ped, origen, punto, objPed)
-    local A = Extras.agua
+    local A, C = Extras.agua, Extras.camion
     A.echando = true
-    local obj, veh = punto, nil
+    local objetivo, vehObj = punto, nil
     if objPed and DoesEntityExist(objPed) then
-        veh = GetVehiclePedIsIn(objPed, false)
-        local c = GetEntityCoords((veh ~= 0 and veh) or objPed)
-        obj = (veh ~= 0) and c or vector3(c.x, c.y, c.z - 0.9)
+        vehObj = GetVehiclePedIsIn(objPed, false)
+        if vehObj == 0 then vehObj = nil end
+        local c = GetEntityCoords(vehObj or objPed)
+        objetivo = vector3(c.x, c.y, c.z + 0.2)
     end
-    if not obj then return end
+    if not objetivo then return end
     local ahora = GetGameTimer()
+
+    if ahora >= (C.fallido or 0) then
+        if not C.listo then
+            CrearCamion(ped)                              -- tarda un momento; mientras, no sale nada
+            return
+        elseif not DoesEntityExist(C.veh) or not DoesEntityExist(C.drv) then
+            Extras.QuitarCamion()
+            return
+        end
+        -- dónde va la boquilla: en la línea cámara → objetivo, a ≤ 7 m del objetivo
+        local d = objetivo - origen
+        local dist = math.max(#d, 0.01)
+        local u = d * (1.0 / dist)
+        local atras = math.max(math.min(dist - 1.0, MAX_DIST_CANON), 1.5)
+        local boca = objetivo - u * atras
+        local rumbo = deg(atan(-u.x, u.y))
+        local r = rad(rumbo)
+        local b = C.boquilla
+        local bx, by = b.x * cos(r) - b.y * sin(r), b.x * sin(r) + b.y * cos(r)
+        local origenCamion = vector3(boca.x - bx, boca.y - by, boca.z - b.z)
+        -- en coordenadas de tu personaje (el camión va pegado a él)
+        local l = GetOffsetFromEntityGivenWorldCoords(ped, origenCamion.x, origenCamion.y, origenCamion.z)
+        local rel = (rumbo - GetEntityHeading(ped) + 540.0) % 360.0 - 180.0
+        local pg = C.pegado
+        if not (pg and math.abs(pg[1] - l.x) < 0.25 and math.abs(pg[2] - l.y) < 0.25 and math.abs(pg[3] - l.z) < 0.25
+                and math.abs(pg[4] - rel) < 3.0 and IsEntityAttachedToEntity(C.veh, ped)) then
+            AttachEntityToEntity(C.veh, ped, 0, l.x, l.y, l.z, 0.0, 0.0, rel, false, false, false, false, 2, true)
+            C.pegado = { l.x, l.y, l.z, rel }
+        end
+        SetCurrentPedVehicleWeapon(C.drv, CANON_AGUA)
+        if objPed then
+            -- persigue a la persona (o a su coche) aunque se mueva
+            local blanco = vehObj or objPed
+            SetVehicleShootAtTarget(C.drv, blanco, 0.0, 0.0, 0.0)
+            if C.tareaDe ~= blanco or ahora >= (A.proxTarea or 0) then
+                TaskVehicleShootAtPed(C.drv, objPed, 1.0)
+                C.tareaDe, A.proxTarea = blanco, ahora + 5000
+            end
+        else
+            SetVehicleShootAtTarget(C.drv, 0, objetivo.x, objetivo.y, objetivo.z)
+            local ul = A.ultimoObjetivo
+            if C.tareaDe ~= "punto" or not ul or #(ul - objetivo) > 2.0 or ahora >= (A.proxTarea or 0) then
+                TaskVehicleShootAtCoord(C.drv, objetivo.x, objetivo.y, objetivo.z, 1.0)
+                C.tareaDe, A.ultimoObjetivo, A.proxTarea = "punto", objetivo, ahora + 3000
+            end
+        end
+        -- empujón extra al coche del objetivo (solo si el juego nos deja controlarlo)
+        if vehObj and ahora >= (A.proxEmpuje or 0) and NetworkHasControlOfEntity(vehObj) then
+            A.proxEmpuje = ahora + 300
+            ApplyForceToEntity(vehObj, 1, u.x * 9.0, u.y * 9.0, 6.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+        end
+        return
+    end
+
+    -- Respaldo (el servidor no deja crear el camión): agua a presión del juego en el punto
     if ahora >= (A.proxBoca or 0) then
         A.proxBoca = ahora + 300
-        AddOwnedExplosion(ped, obj.x, obj.y, obj.z, EXP_AGUA, 1.0, true, false, 0.0)
-        StopFireInRange(obj.x, obj.y, obj.z, 3.0)
-        if veh and veh ~= 0 and NetworkHasControlOfEntity(veh) then
-            local d = obj - origen
-            local n = math.max(#d, 0.01)
-            ApplyForceToEntity(veh, 1, d.x / n * 9.0, d.y / n * 9.0, 6.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
-        end
-    end
-    -- chorro visible que sale de la cámara hacia el punto (se rehace cada poco para seguir la mira)
-    if PtfxListo() and ahora >= (A.proxChorro or 0) then
-        A.proxChorro = ahora + 110
-        QuitarPtfx(A.chorro); A.chorro = nil
-        local d = obj - origen
-        local dist = math.max(#d, 0.01)
-        local rumbo = deg(atan(-d.x, d.y))
-        local incl = deg(asin(math.max(-1.0, math.min(1.0, d.z / dist))))
-        local salida = origen + (d / dist) * 1.4
-        UseParticleFxAssetNextCall(PTFX)
-        A.chorro = StartNetworkedParticleFxLoopedAtCoord("water_cannon_jet", salida.x, salida.y, salida.z,
-            incl, 0.0, rumbo, 1.0, false, false, false, false)
+        local p = vehObj and GetEntityCoords(vehObj) or objetivo
+        AddOwnedExplosion(ped, p.x, p.y, p.z - (objPed and not vehObj and 1.1 or 0.0), EXP_AGUA, 1.0, true, false, 0.0)
+        StopFireInRange(p.x, p.y, p.z, 3.0)
     end
 end
 
@@ -4441,7 +4497,7 @@ local function FrameAgua(ped, ahora)
                     AddOwnedExplosion(ped, c.x, c.y, c.z, EXP_AGUA, 1.0, true, false, 0.0)
                     -- un empujón extra con la propia física (solo si el juego nos deja controlar el coche)
                     if NetworkHasControlOfEntity(veh) then
-                        local f = v / dist
+                        local f = v * (1.0 / dist)
                         ApplyForceToEntity(veh, 1, f.x * 9.0, f.y * 9.0, 6.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
                     end
                 else
@@ -4484,6 +4540,10 @@ function Extras.Frame(ped, pFijar, aguaAbajo)
         if cand and not DoesEntityExist(cand) then cand, Extras.candidato = nil, nil end
         if cand and not IndiceMarcado(cand) then Marca(cand, false) end
         Extras.hayMarcas = (cand ~= nil) or #marcados > 0 or Extras.cocheMira ~= nil
+        -- camión en pausa demasiado tiempo: fuera
+        if not Extras.agua.echando and Extras.camion.veh and ahora >= (Extras.agua.pausaHasta or 0) then
+            Extras.PararAgua()
+        end
         return
     end
     if Extras.agua.chorro and not aguaAbajo then Extras.PararAgua() end   -- por si venías de la freecam
@@ -11130,7 +11190,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v11.6"
+local VERSION = "v11.7"
 
 -- ═════════════════════════════════════════════════════════
 -- SURGE · INTERFAZ
@@ -11780,6 +11840,10 @@ UI.apartados = {
 }
 
 UI.novedades = {
+    { "v11.7", "Real fire-truck jet in the freecam", {
+        "Water in the freecam now fires the real fire-truck cannon (invisible truck) right where you aim.",
+        "Letting go keeps the truck ready for a few seconds, so the next spray starts instantly.",
+        "The hose defaults to the real cannon only, without hydrant geysers." } },
     { "v11.6", "Water war", {
         "The cannon truck is invisible to everyone and spawns through the Susano API, so only the water shows.",
         "Spray a marked person in a car and the water hits the car and pushes it around (game water physics, no damage).",
@@ -13672,9 +13736,16 @@ Cam.herr = 1
 function Cam.Apuntar()
     local o = vector3(Cam.x, Cam.y, Cam.z)
     local d = DirCamara()
-    local hit, punto, ent = Raycast(o, o + d * 1200.0, -1, Cam.ped)
+    local C = Extras.camion
+    -- el camión invisible del agua (y su conductor) no cuentan: si el rayo da en ellos, se sigue detrás
+    local hit, punto, ent = Raycast(o, o + d * 1200.0, -1, C.veh or Cam.ped)
+    if hit and ent and ent ~= 0 and (ent == C.veh or ent == C.drv) then
+        local o2 = punto + d * 0.5
+        hit, punto, ent = Raycast(o2, o2 + d * 1200.0, -1, C.veh or Cam.ped)
+    end
     local pedObj
-    if ent and ent ~= 0 and ent ~= Cam.ped and DoesEntityExist(ent) and IsEntityAPed(ent) and not IsPedDeadOrDying(ent, true) then
+    if ent and ent ~= 0 and ent ~= Cam.ped and ent ~= C.drv and DoesEntityExist(ent) and IsEntityAPed(ent)
+        and not IsPedDeadOrDying(ent, true) then
         pedObj = ent
     end
     return (hit and punto) or (o + d * 60.0), pedObj
@@ -13698,9 +13769,9 @@ function Cam.Herramienta(ped)
         if abajo then
             local punto, objPed = Cam.Apuntar()
             Extras.AguaEn(ped, vector3(Cam.x, Cam.y, Cam.z), punto, objPed)
-        elseif Extras.agua.echando then Extras.PararAgua() end
+        elseif Extras.agua.echando then Extras.PausarAgua() end
         return
-    elseif Extras.agua.echando then Extras.PararAgua() end
+    elseif Extras.agua.echando or Extras.camion.veh then Extras.PararAgua() end
     if not justo then return end
     if h.id == "coche" then
         if Config.activado then Cam.agarrar = true else Avisar("Turn on Carry cars first") end
