@@ -1,5 +1,6 @@
--- cargar_coches.lua  ·  v10.11
+-- cargar_coches.lua  ·  v10.12
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v10.12: Superman: antes de levantar un coche se vuelve a comprobar con el mismo criterio (pasajeros y último conductor) · los coches lejanos suben a ≤120 m/s en vez de teletransportarse
 --   v10.11: Superman: solo coge coches que se pueden controlar (vacíos, de NPC o tuyos; salta los que lleva o usó por última vez otro jugador) · radio de búsqueda hasta 1000 m
 --   v10.10: arreglo: la parte de "una sola copia" ya no depende de os/_G (en algunos executors no existen y el script no abría); si falla se desactiva sola
 --   v10.9: una sola copia a la vez: al volver a ejecutar el script, la anterior se descarga sola (suelta todo) y esta toma el relevo; sin crash
@@ -4672,7 +4673,7 @@ local function EmpezarSubida(e, me, ahora)
     e.ox, e.oy, e.oz = Hueco(e, ahora / 1000.0)     -- su sitio (se mueve suave si cambia el reparto)
     local d = #(e.desde - GetEntityCoords(me))
     -- con más velocidad de recogida también suben más deprisa
-    e.dur = Clamp((d + 6.0) / (10.0 + Config.supermanVelocidad * 3.0), 0.45, 3.0) * 1000.0
+    e.dur = Clamp((d + 6.0) / (10.0 + Config.supermanVelocidad * 3.0), 0.45, math.max(3.0, d / 120.0)) * 1000.0   -- el tope crece con la distancia (≤120 m/s)
     e.arco = math.min(7.0, 1.5 + d * 0.15)
     e.puertas = GetVehicleDoorLockStatus(v)
     SetEntityInvincible(v, true)
@@ -4993,8 +4994,8 @@ local function FrameArriba(me, ahora, t, dt)
             Despegar(e, me, ahora)
         elseif e.fase == "control" then
             if NetworkHasControlOfEntity(v) then
-                if ConduceJugador(v) then
-                    -- Se ha puesto un jugador al volante mientras se pedía el control: no se toca
+                if Super.UsadoPorOtroJugador(v, me) then
+                    -- Se ha subido un jugador mientras se pedía el control: no se toca
                     table.remove(C, i); Super.layoutSucio = true
                     Olvidar(v, ahora, 5000)
                 else
@@ -5082,7 +5083,7 @@ local function CambiarCentro(nuevo, me, ahora)
             SetEntityCoordsNoOffset(v, e.desde.x, e.desde.y, e.desde.z, false, false, false)
             local d = #(e.desde - c0)
             e.fase, e.t0 = "sube", ahora
-            e.dur = Clamp((d + 6.0) / (10.0 + Config.supermanVelocidad * 3.0), 0.45, 3.0) * 1000.0
+            e.dur = Clamp((d + 6.0) / (10.0 + Config.supermanVelocidad * 3.0), 0.45, math.max(3.0, d / 120.0)) * 1000.0   -- el tope crece con la distancia (≤120 m/s)
             e.arco = math.min(7.0, 1.5 + d * 0.15)
         end
     end
