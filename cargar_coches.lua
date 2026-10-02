@@ -1,5 +1,8 @@
--- cargar_coches.lua  ·  Surge v11.5
+-- cargar_coches.lua  ·  Surge v11.6
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v11.6: GUERRA DE AGUA · el camión del cañón aparece con Susano.CreateSpoofedVehicle (y si no, el normal) e
+--          invisible para todos (SetEntityAlpha 0) · el agua le da al coche de los marcados y lo empuja con la
+--          física del agua del juego (sincronizada, sin daño) · herramientas de la freecam: Agua (mantener) y Marcar
 --   v11.5: MENÚ EN INGLÉS · barra lateral plegable (clic en un apartado lo abre y otro clic lo cierra) con animación ·
 --          selección, pestañas y foco que se deslizan · al cerrar con la tecla del menú todo se desvanece a la vez
 --          (colores a 0..1: DrawImage no entendía 0..255 y los iconos no se iban) · herramientas de la freecam con la
@@ -4237,11 +4240,19 @@ local function CrearCamion(ped)
                 C.fallo = "couldn't load the fire truck"; return
             end
             local p = GetOffsetFromEntityInWorldCoords(ped, 0.0, -2.0, 0.0)
-            local veh = CreateVehicle(MODELO_CAMION, p.x, p.y, p.z, GetEntityHeading(ped), true, false)
+            -- El camión solo es un emisor del chorro: invisible y sin colisión. Primero con la API de
+            -- Susano (así aparece aunque el servidor limite CreateVehicle) y, si no, con el normal.
+            local veh = 0
+            if type(Susano) == "table" and type(Susano.CreateSpoofedVehicle) == "function" then
+                local okS, v = pcall(Susano.CreateSpoofedVehicle, MODELO_CAMION, p.x, p.y, p.z, GetEntityHeading(ped), true, true, false)
+                if okS and type(v) == "number" and v ~= 0 then veh = v end
+            end
+            if veh == 0 then veh = CreateVehicle(MODELO_CAMION, p.x, p.y, p.z, GetEntityHeading(ped), true, false) end
             if not veh or veh == 0 then C.fallo = "the server won't let the truck spawn"; return end
             C.veh = veh
             SetEntityAsMissionEntity(veh, true, true)
             SetEntityVisible(veh, false, false)
+            SetEntityAlpha(veh, 0, false)                   -- invisible también para los demás
             SetEntityCollision(veh, false, false)
             SetEntityInvincible(veh, true)
             SetVehicleDoorsLocked(veh, 2)
@@ -4294,6 +4305,44 @@ function Extras.PararAgua()
     QuitarPtfx(A.chorro)
     A.chorro, A.echando, A.ultimoObjetivo = nil, false, nil
     Extras.QuitarCamion()
+end
+
+-- Agua desde la freecam: cae en el punto que miras (o en el coche de la persona que apuntas).
+-- Es el agua a presión del juego (sincronizada, sin daño). origen = la cámara, para dibujar el chorro.
+function Extras.AguaEn(ped, origen, punto, objPed)
+    local A = Extras.agua
+    A.echando = true
+    local obj, veh = punto, nil
+    if objPed and DoesEntityExist(objPed) then
+        veh = GetVehiclePedIsIn(objPed, false)
+        local c = GetEntityCoords((veh ~= 0 and veh) or objPed)
+        obj = (veh ~= 0) and c or vector3(c.x, c.y, c.z - 0.9)
+    end
+    if not obj then return end
+    local ahora = GetGameTimer()
+    if ahora >= (A.proxBoca or 0) then
+        A.proxBoca = ahora + 300
+        AddOwnedExplosion(ped, obj.x, obj.y, obj.z, EXP_AGUA, 1.0, true, false, 0.0)
+        StopFireInRange(obj.x, obj.y, obj.z, 3.0)
+        if veh and veh ~= 0 and NetworkHasControlOfEntity(veh) then
+            local d = obj - origen
+            local n = math.max(#d, 0.01)
+            ApplyForceToEntity(veh, 1, d.x / n * 9.0, d.y / n * 9.0, 6.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+        end
+    end
+    -- chorro visible que sale de la cámara hacia el punto (se rehace cada poco para seguir la mira)
+    if PtfxListo() and ahora >= (A.proxChorro or 0) then
+        A.proxChorro = ahora + 110
+        QuitarPtfx(A.chorro); A.chorro = nil
+        local d = obj - origen
+        local dist = math.max(#d, 0.01)
+        local rumbo = deg(atan(-d.x, d.y))
+        local incl = deg(asin(math.max(-1.0, math.min(1.0, d.z / dist))))
+        local salida = origen + (d / dist) * 1.4
+        UseParticleFxAssetNextCall(PTFX)
+        A.chorro = StartNetworkedParticleFxLoopedAtCoord("water_cannon_jet", salida.x, salida.y, salida.z,
+            incl, 0.0, rumbo, 1.0, false, false, false, false)
+    end
 end
 
 local function FrameAgua(ped, ahora)
@@ -4382,10 +4431,23 @@ local function FrameAgua(ped, ahora)
     if usaBoca and ahora >= (A.proxBoca or 0) then
         A.proxBoca = ahora + 350
         if #objetivos > 0 then
-            -- A los pies de cada marcado, estén donde estén
+            -- A cada marcado, estén donde estén. Si va en coche, el agua le da al coche y lo empuja
+            -- (la fuerza es la del agua a presión del juego, sincronizada y sin daño: guerra de agua).
             for i = 1, math.min(#objetivos, 8) do
-                local c = GetEntityCoords(objetivos[i])
-                AddOwnedExplosion(ped, c.x, c.y, c.z - 0.95, EXP_AGUA, 1.0, true, false, 0.0)
+                local o = objetivos[i]
+                local veh = GetVehiclePedIsIn(o, false)
+                if veh ~= 0 and DoesEntityExist(veh) then
+                    local c = GetEntityCoords(veh)
+                    AddOwnedExplosion(ped, c.x, c.y, c.z, EXP_AGUA, 1.0, true, false, 0.0)
+                    -- un empujón extra con la propia física (solo si el juego nos deja controlar el coche)
+                    if NetworkHasControlOfEntity(veh) then
+                        local f = v / dist
+                        ApplyForceToEntity(veh, 1, f.x * 9.0, f.y * 9.0, 6.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+                    end
+                else
+                    local c = GetEntityCoords(o)
+                    AddOwnedExplosion(ped, c.x, c.y, c.z - 0.95, EXP_AGUA, 1.0, true, false, 0.0)
+                end
             end
             StopFireInRange(obj.x, obj.y, obj.z, 3.0)
         elseif A.hit then
@@ -4408,6 +4470,23 @@ function Extras.Frame(ped, pFijar, aguaAbajo)
     if Config.patadasMoto then FramePatadas(ped, ahora) end
     -- Coche que vas a coger, marcado en pantalla cuando estás en la freecam
     Extras.cocheMira = (Config.activado and not vehiculo and apuntado and CamaraLejos(ped)) and apuntado or nil
+
+    -- En la freecam, las herramientas (Agua, Marcar) controlan el agua y el marcar; aquí solo se dibuja
+    if Cam and Cam.activa then
+        if ahora >= (Extras.proxApunte or 0) then
+            Extras.proxApunte = ahora + 100
+            local _, objPed = Cam.Apuntar()
+            Extras.candidato = (objPed and objPed ~= ped) and objPed or nil
+        end
+        local marcados = Marcados()
+        for i = 1, #marcados do Marca(marcados[i], true) end
+        local cand = Extras.candidato
+        if cand and not DoesEntityExist(cand) then cand, Extras.candidato = nil, nil end
+        if cand and not IndiceMarcado(cand) then Marca(cand, false) end
+        Extras.hayMarcas = (cand ~= nil) or #marcados > 0 or Extras.cocheMira ~= nil
+        return
+    end
+    if Extras.agua.chorro and not aguaAbajo then Extras.PararAgua() end   -- por si venías de la freecam
 
     -- Marcar sirve para la manguera y para el modo Superman
     if not Config.manguera and not Config.superman then
@@ -11051,7 +11130,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v11.5"
+local VERSION = "v11.6"
 
 -- ═════════════════════════════════════════════════════════
 -- SURGE · INTERFAZ
@@ -11701,6 +11780,10 @@ UI.apartados = {
 }
 
 UI.novedades = {
+    { "v11.6", "Water war", {
+        "The cannon truck is invisible to everyone and spawns through the Susano API, so only the water shows.",
+        "Spray a marked person in a car and the water hits the car and pushes it around (game water physics, no damage).",
+        "Freecam tools now include Water (hold to spray) and Mark." } },
     { "v11.5", "English, smoother, freecam tools", {
         "The whole menu is now in English.",
         "Sidebar sections fold and unfold with a click; the selection, tabs and focus slide smoothly.",
@@ -13577,10 +13660,12 @@ end
 -- Todas son para ti o cosas locales: copiar la ropa de alguien, traerte a ese punto,
 -- coger el coche que miras (con Cargar coches encendido) y fuegos artificiales (solo los ves tú).
 Cam.HERR = {
-    { id = "ropa",   nombre = "Copy clothes", icono = "ropa",      ayuda = "Click a player to put on their whole look." },
-    { id = "traer",  nombre = "Bring me here", icono = "pin",      ayuda = "Click to teleport to the point you're looking at." },
-    { id = "coche",  nombre = "Grab car",     icono = "vehiculos", ayuda = "Click a car to grab it (needs Carry cars on)." },
-    { id = "fuegos", nombre = "Fireworks",    icono = "efectos",   ayuda = "Click to set off fireworks there (only you see them)." },
+    { id = "agua",   nombre = "Water",       icono = "manguera",  ayuda = "Hold click to spray water where you aim (soaks people and pushes their car)." },
+    { id = "marcar", nombre = "Mark",        icono = "mira",      ayuda = "Click to mark who you aim at (for the hose and Superman)." },
+    { id = "ropa",   nombre = "Copy clothes", icono = "ropa",     ayuda = "Click a player to put on their whole look." },
+    { id = "traer",  nombre = "Bring me here", icono = "pin",     ayuda = "Click to teleport to the point you're looking at." },
+    { id = "coche",  nombre = "Grab car",    icono = "vehiculos", ayuda = "Click a car to grab it (needs Carry cars on)." },
+    { id = "fuegos", nombre = "Fireworks",   icono = "efectos",   ayuda = "Click to set off fireworks there (only you see them)." },
 }
 Cam.herr = 1
 
@@ -13606,15 +13691,25 @@ function Cam.Herramienta(ped)
     -- rueda: cambia de herramienta
     if IsDisabledControlJustPressed(0, 241) or IsDisabledControlJustPressed(0, 15) then Cam.CambiarHerr(-1) end
     if IsDisabledControlJustPressed(0, 242) or IsDisabledControlJustPressed(0, 14) then Cam.CambiarHerr(1) end
-    local _, justo = Tecla(0x01)
-    if not justo then return end
+    local abajo, justo = Tecla(0x01)
     local h = Cam.HERR[Cam.herr]
+    -- Agua: se mantiene el clic para echar agua donde apuntas
+    if h.id == "agua" then
+        if abajo then
+            local punto, objPed = Cam.Apuntar()
+            Extras.AguaEn(ped, vector3(Cam.x, Cam.y, Cam.z), punto, objPed)
+        elseif Extras.agua.echando then Extras.PararAgua() end
+        return
+    elseif Extras.agua.echando then Extras.PararAgua() end
+    if not justo then return end
     if h.id == "coche" then
         if Config.activado then Cam.agarrar = true else Avisar("Turn on Carry cars first") end
         return
     end
     local punto, objPed = Cam.Apuntar()
-    if h.id == "ropa" then
+    if h.id == "marcar" then
+        if objPed then Extras.Alternar(objPed) else Avisar("Aim at a person to mark them") end
+    elseif h.id == "ropa" then
         if objPed and IsPedAPlayer(objPed) then
             local pid = NetworkGetPlayerIndexFromPed(objPed)
             Ropa.CopiarDe(objPed, (GetPlayerName(pid) or "player"))
