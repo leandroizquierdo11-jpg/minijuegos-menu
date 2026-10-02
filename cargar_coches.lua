@@ -9950,7 +9950,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v10.4"
+local VERSION = "v10.12"
 
 local UI = {
     w = 850, h = 597, lateral = 72,
