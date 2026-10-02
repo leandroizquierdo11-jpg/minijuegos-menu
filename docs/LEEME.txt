@@ -1,0 +1,3 @@
+docs/susano_api_interfaz.md : extracto de la API de Susano (la parte de interfaz: dibujo, fuentes, imágenes,
+recortes, teclas, ratón, cámara). Pasado por el usuario; sirve de referencia para rediseñar el menú.
+No es una API de HTML/CSS: es un overlay tipo ImGui (rectángulos, texto, imágenes, desenfoque, degradados...).
