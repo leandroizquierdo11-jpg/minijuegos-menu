@@ -134,6 +134,7 @@ local Config = {
     aparienciaAlIniciar = false, -- ponerse la apariencia guardada al cargar el script
     tuneoGuardar   = true,       -- recordar el tuneo de cada modelo (se guarda en el archivo)
     tuneoAuto      = true,       -- ponerlo solo al conducir un coche de ese modelo
+    tuneoEvento    = "surge",    -- prefijo del trigger del servidor (surge → surge:tuneoGuardar, etc.)
     atuendoAlIniciar = false,    -- ponerse el último atuendo al cargar el script
     ultimoAtuendo  = 0,          -- el último atuendo que te pusiste (1..3)
     fijarRopa      = false,      -- "Lock my clothes" (se recuerda al reiniciar)
@@ -1109,12 +1110,16 @@ end
 local function Anadir(lista, it) if it then lista[#lista + 1] = it end end
 
 -- ── Tuneo guardado ────────────────────────────────────────
--- Si el recurso surge-tuneo está en el servidor, se usa TriggerServerEvent para guardar/cargar
--- (el servidor guarda con KVP, sobrevive a reinicios). Si no, se guarda en local (.ssn).
--- En ambos casos lo pone el conductor (network owner), así lo ven todos.
+-- El tuneo se manda al servidor por trigger (Config.tuneoEvento es el prefijo).
+-- Si el servidor tiene un recurso que escucha esos eventos, guarda y devuelve los datos.
+-- Si no, se guarda en local (.ssn). Lo pone el conductor (network owner), así lo ven todos.
 Tuneo.guardados = {}                -- [tostring(modelo)] = { nombre = ..., p = propiedades }
 Tuneo.puestos = setmetatable({}, { __mode = "k" })
 Tuneo.servidor = false              -- se pone a true cuando el servidor responde
+local function EvGuardar() return Config.tuneoEvento .. ":tuneoGuardar" end
+local function EvCargar()  return Config.tuneoEvento .. ":tuneoCargar" end
+local function EvOlvidar() return Config.tuneoEvento .. ":tuneoOlvidar" end
+local function EvDatos()   return Config.tuneoEvento .. ":tuneosDatos" end
 local N_ModColor1 = Nativa("GetVehicleModColor_1")
 local N_ModColor2 = Nativa("GetVehicleModColor_2")
 local N_SetModColor1 = Nativa("SetVehicleModColor_1")
@@ -1189,7 +1194,7 @@ function Tuneo.Guardar(v, silencioso)
     Tuneo.guardados[modelo] = entrada
     Tuneo.puestos[v] = true
     if Tuneo.servidor then
-        pcall(TriggerServerEvent, "surge:tuneoGuardar", modelo, entrada)
+        pcall(TriggerServerEvent, EvGuardar(), modelo, entrada)
     end
     local ok = Guardado.Guardar(true)
     if not silencioso then
@@ -1235,22 +1240,32 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Escuchar tuneos del servidor (si el recurso surge-tuneo está activo, responde)
-pcall(function()
-    RegisterNetEvent("surge:tuneosDatos")
-    AddEventHandler("surge:tuneosDatos", function(todos)
-        Tuneo.servidor = true
-        if type(todos) == "table" then
-            for modelo, entrada in pairs(todos) do
-                if type(entrada) == "table" then Tuneo.guardados[tostring(modelo)] = entrada end
-            end
-            Tuneo.sucio = true
+-- Escuchar tuneos del servidor (si hay un recurso que responde al trigger configurado)
+local function RecibirTuneos(todos)
+    Tuneo.servidor = true
+    if type(todos) == "table" then
+        for modelo, entrada in pairs(todos) do
+            if type(entrada) == "table" then Tuneo.guardados[tostring(modelo)] = entrada end
         end
+        Tuneo.sucio = true
+    end
+end
+
+local tuneoEventoActual = nil
+local function RegistrarEventoTuneo()
+    local nombre = EvDatos()
+    if nombre == tuneoEventoActual then return end
+    tuneoEventoActual = nombre
+    pcall(function()
+        RegisterNetEvent(nombre)
+        AddEventHandler(nombre, RecibirTuneos)
     end)
-end)
+end
+
+RegistrarEventoTuneo()
 Citizen.CreateThread(function()
     Citizen.Wait(3000)
-    pcall(TriggerServerEvent, "surge:tuneoCargar")
+    pcall(TriggerServerEvent, EvCargar())
 end)
 
 CATEGORIAS = {
@@ -1409,9 +1424,34 @@ CATEGORIAS = {
             fn = function()
                 local modelo = tostring(GetEntityModel(v))
                 Tuneo.guardados[modelo] = nil; Guardado.Guardar(true); Tuneo.sucio = true
-                if Tuneo.servidor then pcall(TriggerServerEvent, "surge:tuneoOlvidar", modelo) end
+                if Tuneo.servidor then pcall(TriggerServerEvent, EvOlvidar(), modelo) end
                 Avisar("Saved tuning removed")
             end, desc = "Deletes the saved tuning of this model." }
+        I[#I + 1] = { tipo = "texto", label = "" }
+        I[#I + 1] = { tipo = "texto", label = "Server sync" .. (Tuneo.servidor and "  ·  connected" or "") }
+        I[#I + 1] = { tipo = "accion", label = "Server trigger", derecha = Config.tuneoEvento,
+            fn = function()
+                PedirTexto("Trigger prefix", Config.tuneoEvento, 30, function(t)
+                    t = t:match("^%s*(.-)%s*$") or ""
+                    if t == "" then Avisar("Can't be empty"); return end
+                    Config.tuneoEvento = t
+                    Guardado.pendiente = true
+                    Tuneo.servidor = false
+                    RegistrarEventoTuneo()
+                    pcall(TriggerServerEvent, EvCargar())
+                    Tuneo.sucio = true
+                    Avisar("Trigger: " .. t .. ":tuneoGuardar/Cargar/Olvidar")
+                end)
+            end,
+            desc = "Name prefix for the server events. Default: surge (sends surge:tuneoGuardar, etc.). Change it to match your server's resource." }
+        I[#I + 1] = { tipo = "accion", label = "Reconnect to server",
+            fn = function()
+                Tuneo.servidor = false
+                RegistrarEventoTuneo()
+                pcall(TriggerServerEvent, EvCargar())
+                Avisar("Requesting tuning from server (" .. EvCargar() .. ")...")
+            end,
+            desc = "Re-sends the load request to the server. Use after changing the trigger or if the connection failed." }
         local n = 0
         for _ in pairs(Tuneo.guardados) do n = n + 1 end
         I[#I + 1] = { tipo = "texto", label = n .. " saved model" .. (n == 1 and "" or "s") }
