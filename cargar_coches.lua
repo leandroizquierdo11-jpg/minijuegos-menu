@@ -1,5 +1,8 @@
--- cargar_coches.lua  ·  Surge v11.8
+-- cargar_coches.lua  ·  Surge v11.9
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v11.9: TUNEO GUARDADO · cada cambio del taller se guarda para ese modelo (archivo de Susano, sobrevive a
+--          reiniciar el juego o el servidor) y se pone solo al conducir un coche de ese modelo; como lo pone el
+--          conductor, lo ven todos · pestaña Garage > Saved (guardar ya, poner, olvidar, lista de modelos)
 --   v11.8: GUARDADO DE VERDAD · se guarda con Susano.WriteFile (.ssn): antes se usaba io, que Susano no tiene, y al
 --          reiniciar se perdía todo · los atuendos guardan el look entero (ropa, accesorios, pelo, cara, maquillaje,
 --          ojos y tatuajes) y se escriben al momento · "Wear last outfit on start" y "Lock my clothes" se recuerdan
@@ -126,6 +129,8 @@ local Config = {
     fuerzaLanzar   = 30.0,   -- velocidad del coche al lanzarlo (m/s)
     ajusteAltura   = 0.0,    -- afina la altura del coche sobre las manos (m)
     aparienciaAlIniciar = false, -- ponerse la apariencia guardada al cargar el script
+    tuneoGuardar   = true,       -- recordar el tuneo de cada modelo (se guarda en el archivo)
+    tuneoAuto      = true,       -- ponerlo solo al conducir un coche de ese modelo
     atuendoAlIniciar = false,    -- ponerse el último atuendo al cargar el script
     ultimoAtuendo  = 0,          -- el último atuendo que te pusiste (1..3)
     fijarRopa      = false,      -- "Lock my clothes" (se recuerda al reiniciar)
@@ -949,6 +954,8 @@ local function Aplicar(fn)
     NetworkRequestControlOfEntity(v)
     SetVehicleModKit(v, 0)
     fn(v)
+    -- recordar el tuneo de este modelo (se guarda un momento después, cuando el cambio ya está puesto)
+    if Config.tuneoGuardar then Tuneo.guardarVeh, Tuneo.guardarEn = v, GetGameTimer() + 1200 end
 end
 
 -- Nombre de una pieza (si el juego no tiene nombre, "Opción N")
@@ -1098,6 +1105,124 @@ end
 
 local function Anadir(lista, it) if it then lista[#lista + 1] = it end end
 
+-- ── Tuneo guardado ────────────────────────────────────────
+-- Se guarda el tuneo de cada modelo que tuneas (en el archivo de Susano, así sigue ahí al reiniciar)
+-- y se vuelve a poner cuando conduces uno de ese modelo. Como lo pone el conductor, el juego se lo
+-- enseña a todos los jugadores.
+Tuneo.guardados = {}                -- [tostring(modelo)] = { nombre = ..., p = propiedades }
+Tuneo.puestos = setmetatable({}, { __mode = "k" })
+local N_ModColor1 = Nativa("GetVehicleModColor_1")
+local N_ModColor2 = Nativa("GetVehicleModColor_2")
+local N_SetModColor1 = Nativa("SetVehicleModColor_1")
+local N_SetModColor2 = Nativa("SetVehicleModColor_2")
+
+function Tuneo.Capturar(v)
+    local t = { mods = {}, toggles = {}, extras = {}, neon = {} }
+    SetVehicleModKit(v, 0)
+    t.ruedas = GetVehicleWheelType(v)
+    for m = 0, 48 do
+        if m ~= 17 and m ~= 18 and m ~= 19 and m ~= 20 and m ~= 21 and m ~= 22 then
+            local i = GetVehicleMod(v, m)
+            if i and i >= 0 then t.mods[m] = { i, (m == 23 or m == 24) and GetVehicleModVariation(v, m) or false } end
+        end
+    end
+    for _, m in ipairs({ 18, 20, 22 }) do t.toggles[m] = IsToggleModOn(v, m) and true or false end
+    t.c1, t.c2 = GetVehicleColours(v)
+    t.perla, t.llanta = GetVehicleExtraColours(v)
+    local a, b, c = N_ModColor1(v); t.tipo1 = { a, b, c }
+    local d, e = N_ModColor2(v); t.tipo2 = { d, e }
+    if GetIsVehiclePrimaryColourCustom(v) then t.rgb1 = { GetVehicleCustomPrimaryColour(v) } end
+    if GetIsVehicleSecondaryColourCustom(v) then t.rgb2 = { GetVehicleCustomSecondaryColour(v) } end
+    t.humo = { GetVehicleTyreSmokeColor(v) }
+    for i = 0, 3 do t.neon[i] = IsVehicleNeonLightEnabled(v, i) and true or false end
+    t.neonRgb = { GetVehicleNeonLightsColour(v) }
+    t.xenon = N_GetXenon(v)
+    t.interior, t.salpicadero = N_GetInter(v), N_GetSalpi(v)
+    t.tintado = GetVehicleWindowTint(v)
+    t.placa, t.placaTxt = GetVehicleNumberPlateTextIndex(v), GetVehicleNumberPlateText(v)
+    t.librea = GetVehicleLivery(v)
+    t.irrompibles = not GetVehicleTyresCanBurst(v)
+    for i = 0, 14 do if DoesExtraExist(v, i) then t.extras[i] = IsVehicleExtraTurnedOn(v, i) and true or false end end
+    return t
+end
+
+function Tuneo.AplicarProps(v, t)
+    if type(t) ~= "table" then return end
+    SetVehicleModKit(v, 0)
+    if t.ruedas then SetVehicleWheelType(v, t.ruedas) end
+    for m = 0, 48 do
+        if m ~= 17 and m ~= 18 and m ~= 19 and m ~= 20 and m ~= 21 and m ~= 22 then
+            local x = t.mods and t.mods[m]
+            if x then SetVehicleMod(v, m, x[1], x[2] and true or false)
+            elseif GetNumVehicleMods(v, m) > 0 then RemoveVehicleMod(v, m) end
+        end
+    end
+    for m, on in pairs(t.toggles or {}) do ToggleVehicleMod(v, m, on) end
+    if t.c1 then SetVehicleColours(v, t.c1, t.c2 or t.c1) end
+    if t.perla then SetVehicleExtraColours(v, t.perla, t.llanta or 0) end
+    if t.tipo1 and t.tipo1[1] then N_SetModColor1(v, t.tipo1[1], t.tipo1[2] or 0, t.tipo1[3] or 0) end
+    if t.tipo2 and t.tipo2[1] then N_SetModColor2(v, t.tipo2[1], t.tipo2[2] or 0) end
+    if t.rgb1 then SetVehicleCustomPrimaryColour(v, t.rgb1[1], t.rgb1[2], t.rgb1[3]) else ClearVehicleCustomPrimaryColour(v) end
+    if t.rgb2 then SetVehicleCustomSecondaryColour(v, t.rgb2[1], t.rgb2[2], t.rgb2[3]) else ClearVehicleCustomSecondaryColour(v) end
+    if t.humo and t.humo[1] then SetVehicleTyreSmokeColor(v, t.humo[1], t.humo[2], t.humo[3]) end
+    for i, on in pairs(t.neon or {}) do SetVehicleNeonLightEnabled(v, i, on) end
+    if t.neonRgb and t.neonRgb[1] then SetVehicleNeonLightsColour(v, t.neonRgb[1], t.neonRgb[2], t.neonRgb[3]) end
+    if t.xenon then N_SetXenon(v, t.xenon) end
+    if t.interior then N_SetInter(v, t.interior) end
+    if t.salpicadero then N_SetSalpi(v, t.salpicadero) end
+    if t.tintado then SetVehicleWindowTint(v, t.tintado) end
+    if t.placa then SetVehicleNumberPlateTextIndex(v, t.placa) end
+    if type(t.placaTxt) == "string" and t.placaTxt ~= "" then SetVehicleNumberPlateText(v, t.placaTxt) end
+    if t.librea and t.librea >= 0 then SetVehicleLivery(v, t.librea) end
+    if t.irrompibles ~= nil then SetVehicleTyresCanBurst(v, not t.irrompibles) end
+    for i, on in pairs(t.extras or {}) do SetVehicleExtra(v, i, not on) end
+end
+
+function Tuneo.Guardar(v, silencioso)
+    if not v or not DoesEntityExist(v) then return false end
+    Tuneo.guardados[tostring(GetEntityModel(v))] = { nombre = tostring(NombreVehiculo(v)), p = Tuneo.Capturar(v) }
+    Tuneo.puestos[v] = true
+    local ok = Guardado.Guardar(true)
+    if not silencioso then Avisar("Tuning saved for " .. NombreVehiculo(v) .. (ok and "" or " (only until restart)")) end
+    return true
+end
+
+-- Pone el tuneo guardado (hace falta ser quien controla el coche para que lo vean todos)
+function Tuneo.Poner(v, silencioso)
+    local g = v and Tuneo.guardados[tostring(GetEntityModel(v))]
+    if not g then if not silencioso then Avisar("No saved tuning for this model") end; return false end
+    if not NetworkHasControlOfEntity(v) then NetworkRequestControlOfEntity(v); return false end
+    Tuneo.AplicarProps(v, g.p)
+    Tuneo.puestos[v] = true
+    Tuneo.sucio = true
+    if not silencioso then Avisar("Saved tuning on") end
+    return true
+end
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(300)
+        pcall(function()
+            local ahora = GetGameTimer()
+            -- guardar lo que acabas de cambiar en el taller
+            if Tuneo.guardarEn and ahora >= Tuneo.guardarEn then
+                local v = Tuneo.guardarVeh
+                Tuneo.guardarEn, Tuneo.guardarVeh = nil, nil
+                if Config.tuneoGuardar and v and DoesEntityExist(v) then Tuneo.Guardar(v, true) end
+            end
+            -- al conducir un coche de un modelo guardado, se le pone tu tuneo
+            if not Config.tuneoAuto then return end
+            local ped = PlayerPedId()
+            local v = GetVehiclePedIsIn(ped, false)
+            if v == 0 or GetPedInVehicleSeat(v, -1) ~= ped or Tuneo.puestos[v] then Tuneo.intentos = 0; return end
+            if not Tuneo.guardados[tostring(GetEntityModel(v))] then Tuneo.puestos[v] = true; return end
+            Tuneo.intentos = (Tuneo.intentos or 0) + 1
+            if Tuneo.Poner(v, true) then Avisar("Your saved tuning is on")
+            elseif Tuneo.intentos > 20 then Tuneo.puestos[v] = true end   -- sin control tras ~6 s: se deja
+        end)
+    end
+end)
+
 CATEGORIAS = {
     { "Performance", function(I)
         Anadir(I, Pieza("Engine", 11, "Level", "Upgrades the engine: more acceleration and top speed."))
@@ -1236,6 +1361,31 @@ CATEGORIAS = {
             "Random parts and colors."))
         Anadir(I, Boton("Remove all tuning", function(v) QuitarTodo(v); Avisar("Stock vehicle") end,
             "Resets the vehicle to stock."))
+    end },
+    { "Saved", function(I)
+        local v = Tuneo.veh
+        local g = Tuneo.guardados[tostring(GetEntityModel(v))]
+        I[#I + 1] = { tipo = "toggle", label = "Remember my tuning", key = "tuneoGuardar",
+            desc = "Every change you make here is saved for this car model, also after restarting the game or the server." }
+        I[#I + 1] = { tipo = "toggle", label = "Put it on when I drive", key = "tuneoAuto",
+            desc = "When you drive a car of a saved model, your tuning goes on by itself. You're the driver, so everyone sees it." }
+        I[#I + 1] = { tipo = "accion", label = "Save this tuning now", derecha = g and "saved" or "",
+            fn = function() Tuneo.Guardar(v); Tuneo.sucio = true end,
+            desc = "Saves everything on this car: parts, colors, wheels, neon, xenon, tint, plate and extras." }
+        I[#I + 1] = { tipo = "accion", label = "Put saved tuning on",
+            fn = function() if not Tuneo.Poner(v) and Tuneo.guardados[tostring(GetEntityModel(v))] then Avisar("Get in as the driver and try again") end end,
+            desc = "Applies the saved tuning of this model to this car." }
+        I[#I + 1] = { tipo = "accion", label = "Forget this model",
+            fn = function()
+                Tuneo.guardados[tostring(GetEntityModel(v))] = nil; Guardado.Guardar(true); Tuneo.sucio = true
+                Avisar("Saved tuning removed")
+            end, desc = "Deletes the saved tuning of this model." }
+        local n = 0
+        for _ in pairs(Tuneo.guardados) do n = n + 1 end
+        I[#I + 1] = { tipo = "texto", label = n .. " saved model" .. (n == 1 and "" or "s") }
+        for k, x in pairs(Tuneo.guardados) do
+            I[#I + 1] = { tipo = "texto", label = "  " .. tostring(x.nombre or k) }
+        end
     end },
 }
 
@@ -2351,7 +2501,7 @@ for k, v in pairs(Config) do if type(v) ~= "table" then CONFIG_DEFECTO[k] = v en
 Guardado.defecto = CONFIG_DEFECTO   -- la documentación de la página enseña el valor por defecto
 
 function Guardado.Guardar(silencioso)
-    local datos = { config = {}, teclas = {}, atuendos = Ropa.atuendos }
+    local datos = { config = {}, teclas = {}, atuendos = Ropa.atuendos, tuneos = Tuneo.guardados }
     for k, v in pairs(Config) do if type(v) ~= "table" then datos.config[k] = v end end
     for _, b in ipairs(binds) do datos.teclas[b.id] = b.tecla end
     local ok = GuardarKvp(CLAVE_AJUSTES, datos)
@@ -2376,6 +2526,7 @@ local function CargarAjustes()
         end
     end
     if type(datos.atuendos) == "table" then Ropa.atuendos = datos.atuendos end
+    if type(datos.tuneos) == "table" then Tuneo.guardados = datos.tuneos end
     Teclas.LeerAtajos()
     return true
 end
@@ -2475,7 +2626,7 @@ local PREFIJO = "SGMENU1:"
 
 function Guardado.Exportar()
     if type(Susano.CopyToClipboard) ~= "function" then Avisar("Your Susano has no clipboard"); return end
-    local datos = { config = {}, teclas = {}, atuendos = Ropa.atuendos, apariencia = CapturarApariencia() }
+    local datos = { config = {}, teclas = {}, atuendos = Ropa.atuendos, tuneos = Tuneo.guardados, apariencia = CapturarApariencia() }
     for k, v in pairs(Config) do if type(v) ~= "table" then datos.config[k] = v end end
     for _, b in ipairs(binds) do datos.teclas[b.id] = b.tecla end
     local ok = pcall(Susano.CopyToClipboard, PREFIJO .. Serializar(datos))
@@ -2503,6 +2654,7 @@ function Guardado.Importar()
         end
     end
     if type(datos.atuendos) == "table" then Ropa.atuendos = datos.atuendos end
+    if type(datos.tuneos) == "table" then Tuneo.guardados = datos.tuneos end
     if type(datos.apariencia) == "table" then AplicarApariencia(datos.apariencia) end
     if vehiculo and not Config.activado then Soltar() end
     Guardado.pendiente = true
@@ -11334,7 +11486,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v11.8"
+local VERSION = "v11.9"
 
 -- ═════════════════════════════════════════════════════════
 -- SURGE · INTERFAZ
@@ -11984,6 +12136,10 @@ UI.apartados = {
 }
 
 UI.novedades = {
+    { "v11.9", "Your tuning stays", {
+        "Every change in the garage is saved for that car model, also after restarting the game or the server.",
+        "When you drive a car of a saved model, your tuning goes on by itself, and everyone sees it.",
+        "New Saved tab in the garage: save now, put it on, forget a model and see the saved list." } },
     { "v11.8", "Outfits saved for real", {
         "Outfits, settings and keys are now kept after restarting (saved with Susano's own files).",
         "Saving an outfit keeps your whole look: clothes, accessories, hair, face, makeup, eyes and tattoos.",
