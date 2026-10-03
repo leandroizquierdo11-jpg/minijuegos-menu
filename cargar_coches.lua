@@ -1,8 +1,5 @@
--- cargar_coches.lua  ·  Surge v11.10
+-- cargar_coches.lua  ·  Surge v11.9
 -- Script para FiveM usando la API de Susano (susano.re)
---   v11.10: TUNEO EN SERVIDOR · el tuneo se guarda en el servidor (KVP): sobrevive a reinicios y lo ven todos ·
---           fxmanifest.lua + server.lua para funcionar como recurso de FiveM · en modo inyector (Susano) se sigue
---           guardando en local (.ssn) como antes
 --   v11.9: TUNEO GUARDADO · cada cambio del taller se guarda para ese modelo (archivo de Susano, sobrevive a
 --          reiniciar el juego o el servidor) y se pone solo al conducir un coche de ese modelo; como lo pone el
 --          conductor, lo ven todos · pestaña Garage > Saved (guardar ya, poner, olvidar, lista de modelos)
@@ -1109,12 +1106,11 @@ end
 local function Anadir(lista, it) if it then lista[#lista + 1] = it end end
 
 -- ── Tuneo guardado ────────────────────────────────────────
--- Como recurso de FiveM: el tuneo se guarda en el servidor (KVP) y sobrevive a reinicios.
--- Como inyector Susano: se guarda en local (.ssn) como antes.
--- En ambos casos lo pone el conductor (network owner), así que lo ven todos.
+-- Se guarda el tuneo de cada modelo que tuneas (en el archivo de Susano, así sigue ahí al reiniciar)
+-- y se vuelve a poner cuando conduces uno de ese modelo. Como lo pone el conductor, el juego se lo
+-- enseña a todos los jugadores.
 Tuneo.guardados = {}                -- [tostring(modelo)] = { nombre = ..., p = propiedades }
 Tuneo.puestos = setmetatable({}, { __mode = "k" })
-Tuneo.esRecurso = pcall(GetCurrentResourceName)  -- true si corre como recurso de FiveM
 local N_ModColor1 = Nativa("GetVehicleModColor_1")
 local N_ModColor2 = Nativa("GetVehicleModColor_2")
 local N_SetModColor1 = Nativa("SetVehicleModColor_1")
@@ -1184,17 +1180,10 @@ end
 
 function Tuneo.Guardar(v, silencioso)
     if not v or not DoesEntityExist(v) then return false end
-    local modelo = tostring(GetEntityModel(v))
-    local entrada = { nombre = tostring(NombreVehiculo(v)), p = Tuneo.Capturar(v) }
-    Tuneo.guardados[modelo] = entrada
+    Tuneo.guardados[tostring(GetEntityModel(v))] = { nombre = tostring(NombreVehiculo(v)), p = Tuneo.Capturar(v) }
     Tuneo.puestos[v] = true
-    if Tuneo.esRecurso then
-        TriggerServerEvent("surge:tuneoGuardar", modelo, entrada)
-        if not silencioso then Avisar("Tuning saved for " .. NombreVehiculo(v)) end
-    else
-        local ok = Guardado.Guardar(true)
-        if not silencioso then Avisar("Tuning saved for " .. NombreVehiculo(v) .. (ok and "" or " (only until restart)")) end
-    end
+    local ok = Guardado.Guardar(true)
+    if not silencioso then Avisar("Tuning saved for " .. NombreVehiculo(v) .. (ok and "" or " (only until restart)")) end
     return true
 end
 
@@ -1233,23 +1222,6 @@ Citizen.CreateThread(function()
         end)
     end
 end)
-
--- Recibir tuneos del servidor al conectar (modo recurso)
-if Tuneo.esRecurso then
-    RegisterNetEvent("surge:tuneosDatos")
-    AddEventHandler("surge:tuneosDatos", function(todos)
-        if type(todos) == "table" then
-            for modelo, entrada in pairs(todos) do
-                if type(entrada) == "table" then Tuneo.guardados[tostring(modelo)] = entrada end
-            end
-            Tuneo.sucio = true
-        end
-    end)
-    Citizen.CreateThread(function()
-        Citizen.Wait(2000)
-        TriggerServerEvent("surge:tuneoCargar")
-    end)
-end
 
 CATEGORIAS = {
     { "Performance", function(I)
@@ -1394,9 +1366,7 @@ CATEGORIAS = {
         local v = Tuneo.veh
         local g = Tuneo.guardados[tostring(GetEntityModel(v))]
         I[#I + 1] = { tipo = "toggle", label = "Remember my tuning", key = "tuneoGuardar",
-            desc = Tuneo.esRecurso
-                and "Every change you make here is saved on the server for this car model. Survives restarts."
-                or  "Every change you make here is saved for this car model, also after restarting the game or the server." }
+            desc = "Every change you make here is saved for this car model, also after restarting the game or the server." }
         I[#I + 1] = { tipo = "toggle", label = "Put it on when I drive", key = "tuneoAuto",
             desc = "When you drive a car of a saved model, your tuning goes on by itself. You're the driver, so everyone sees it." }
         I[#I + 1] = { tipo = "accion", label = "Save this tuning now", derecha = g and "saved" or "",
@@ -1407,10 +1377,7 @@ CATEGORIAS = {
             desc = "Applies the saved tuning of this model to this car." }
         I[#I + 1] = { tipo = "accion", label = "Forget this model",
             fn = function()
-                local modelo = tostring(GetEntityModel(v))
-                Tuneo.guardados[modelo] = nil; Tuneo.sucio = true
-                if Tuneo.esRecurso then TriggerServerEvent("surge:tuneoOlvidar", modelo)
-                else Guardado.Guardar(true) end
+                Tuneo.guardados[tostring(GetEntityModel(v))] = nil; Guardado.Guardar(true); Tuneo.sucio = true
                 Avisar("Saved tuning removed")
             end, desc = "Deletes the saved tuning of this model." }
         local n = 0
@@ -2434,8 +2401,8 @@ end
 --   Los ajustes, las teclas y los atuendos se guardan solos (en el almacenamiento
 --   en un archivo de tu carpeta de Windows, si Susano deja escribir archivos) y se
 --   cargan al iniciar el script. Siempre se pueden exportar/importar con el portapapeles.
---   Como recurso de FiveM, el tuneo se guarda en el servidor (SetResourceKvp en server.lua).
---   Como inyector Susano, se guarda en local (.ssn) porque no hay recurso.
+--   IMPORTANTE: no se usa el almacenamiento de FiveM (SetResourceKvp): desde un
+--   inyector no hay recurso y esa función cierra el juego.
 --   La apariencia completa se guarda con su botón en Personaje > Utilidades.
 -- ═════════════════════════════════════════════════════════
 local CLAVE_AJUSTES    = "sg_menu_ajustes_v1"
@@ -2534,8 +2501,7 @@ for k, v in pairs(Config) do if type(v) ~= "table" then CONFIG_DEFECTO[k] = v en
 Guardado.defecto = CONFIG_DEFECTO   -- la documentación de la página enseña el valor por defecto
 
 function Guardado.Guardar(silencioso)
-    local datos = { config = {}, teclas = {}, atuendos = Ropa.atuendos }
-    if not Tuneo.esRecurso then datos.tuneos = Tuneo.guardados end
+    local datos = { config = {}, teclas = {}, atuendos = Ropa.atuendos, tuneos = Tuneo.guardados }
     for k, v in pairs(Config) do if type(v) ~= "table" then datos.config[k] = v end end
     for _, b in ipairs(binds) do datos.teclas[b.id] = b.tecla end
     local ok = GuardarKvp(CLAVE_AJUSTES, datos)
@@ -11520,7 +11486,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v11.10"
+local VERSION = "v11.9"
 
 -- ═════════════════════════════════════════════════════════
 -- SURGE · INTERFAZ
