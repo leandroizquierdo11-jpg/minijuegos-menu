@@ -1,5 +1,11 @@
--- cargar_coches.lua  ·  Surge v11.7
+-- cargar_coches.lua  ·  Surge v11.8
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v11.8: GUARDADO DE VERDAD · se guarda con Susano.WriteFile (.ssn): antes se usaba io, que Susano no tiene, y al
+--          reiniciar se perdía todo · los atuendos guardan el look entero (ropa, accesorios, pelo, cara, maquillaje,
+--          ojos y tatuajes) y se escriben al momento · "Wear last outfit on start" y "Lock my clothes" se recuerdan
+--          al reiniciar · "Lock my clothes" también arriba de Copy clothes · chorro de agua clavado a la mira
+--          (manguera y freecam): sin torreta con IA, el chorro va siempre a donde apuntas y el camión invisible
+--          se queda quieto en la línea de la mira
 --   v11.7: arreglo: el agua de la freecam petaba (StartNetworkedParticleFxLoopedAtCoord no existe en FiveM) y solo
 --          salían géiseres · ahora dispara el cañón de verdad del camión de bomberos invisible, colocado en la línea
 --          cámara → objetivo (≤ 7 m del objetivo) · al soltar el camión espera 4 s (el siguiente chorro sale al
@@ -120,6 +126,9 @@ local Config = {
     fuerzaLanzar   = 30.0,   -- velocidad del coche al lanzarlo (m/s)
     ajusteAltura   = 0.0,    -- afina la altura del coche sobre las manos (m)
     aparienciaAlIniciar = false, -- ponerse la apariencia guardada al cargar el script
+    atuendoAlIniciar = false,    -- ponerse el último atuendo al cargar el script
+    ultimoAtuendo  = 0,          -- el último atuendo que te pusiste (1..3)
+    fijarRopa      = false,      -- "Lock my clothes" (se recuerda al reiniciar)
     posesion       = false,  -- poder controlar NPCs apuntándolos
     contornoNpc    = true,   -- flecha sobre el NPC apuntado
     protegerCuerpo = true,   -- tu personaje no recibe daño mientras controlas a otro
@@ -138,6 +147,7 @@ local Config = {
     manguera       = false,  -- echar agua como el camión de bomberos, sin camión
     tipoAgua       = 2,      -- 1 cañón real + boca de incendios, 2 solo cañón real, 3 solo boca de incendios
     alcanceAgua    = 20.0,   -- hasta dónde llega el agua (m)
+    aguaMira       = true,   -- el chorro va exactamente a donde marca la mira (manguera y freecam)
     -- ── Modo Superman ──────────────────────────────────────
     superman       = false,  -- modo Superman: recoger los coches de la zona y levitarlos sobre tu cabeza
     supermanVelocidad = 6.0, -- velocidad de recogida (coches por segundo: 1 = de uno en uno, 30 = casi de golpe)
@@ -1482,34 +1492,39 @@ local function Accesorio(items, nombre, pr, desc)
         end }
 end
 
--- Atuendos guardados (mientras el script esté cargado)
-
+-- Atuendos guardados: el look entero (ropa, accesorios, pelo, cara, maquillaje, ojos y tatuajes).
+-- Se escriben al archivo en el momento, así siguen ahí aunque reinicies el juego o el script.
 local function GuardarAtuendo(n)
-    local p, a = PlayerPedId(), { comp = {}, prop = {} }
-    for _, c in ipairs(COMPONENTES) do
-        a.comp[c] = { GetPedDrawableVariation(p, c), GetPedTextureVariation(p, c), GetPedPaletteVariation(p, c) }
-    end
-    for _, pr in ipairs(PROPS) do a.prop[pr] = { GetPedPropIndex(p, pr), GetPedPropTextureIndex(p, pr) } end
-    Ropa.atuendos[n] = a
-    Guardado.pendiente = true
-    Avisar("Outfit " .. n .. " saved")
+    Ropa.atuendos[n] = Guardado.Capturar()
+    local ok = Guardado.Guardar(true)
+    Avisar("Outfit " .. n .. " saved" .. (ok and "" or " (only until restart: files can't be saved here)"))
 end
 
-local function CargarAtuendo(n)
+local function CargarAtuendo(n, silencioso)
     local a = Ropa.atuendos[n]
-    if not a then Avisar("Outfit " .. n .. " is empty"); return end
-    local p = PlayerPedId()
-    for c, v in pairs(a.comp) do
-        if IsPedComponentVariationValid(p, c, v[1], v[2]) then SetPedComponentVariation(p, c, v[1], v[2], v[3] or 0) end
-    end
-    for pr, v in pairs(a.prop) do
-        if v[1] < 0 then ClearPedProp(p, pr) else SetPedPropIndex(p, pr, v[1], math.max(v[2], 0), true) end
-    end
-    Ropa.Refijar()
-    Avisar("Outfit " .. n .. " on")
+    if not a then if not silencioso then Avisar("Outfit " .. n .. " is empty") end; return end
+    Guardado.Aplicar(a)
+    if Config.ultimoAtuendo ~= n then Config.ultimoAtuendo = n; Guardado.pendiente = true end
+    if not silencioso then Avisar("Outfit " .. n .. " on") end
 end
+Ropa.CargarAtuendo = CargarAtuendo
 
 local function Btn(label, fn, desc) return { tipo = "accion", label = label, fn = fn, desc = desc } end
+
+-- "Lock my clothes" (está en Outfits y arriba del todo en Copy clothes)
+function Ropa.ToggleFijar()
+    return { tipo = "toggle", label = "Lock my clothes",
+        desc = "Keeps the clothes you're wearing (also copied ones). If the server resets them or your hat/glasses come off, they're put back. If you remove or change an item yourself (here or in the server menu), it sticks.",
+        get = function() return Ropa.fijar end,
+        set = function(on)
+            Ropa.fijar = on and true or false
+            if Config.fijarRopa ~= Ropa.fijar then Config.fijarRopa = Ropa.fijar; Guardado.pendiente = true end
+            Ropa.fija = Ropa.fijar and FotoRopa(PlayerPedId()) or nil
+            if Ropa.fijar then SembrarBase(PlayerPedId(), Ropa.fija) end
+            if Ropa.fijar and AdoptarTatuajes then AdoptarTatuajes() end
+            Avisar(Ropa.fijar and "Clothes locked" or "Clothes free")
+        end }
+end
 
 CATEGORIAS_ROPA = {
     { "Head", function(I)
@@ -1550,21 +1565,15 @@ CATEGORIAS_ROPA = {
         Accesorio(I, "Bracelets", 7, "Pulseras.")
     end },
     { "Outfits", function(I)
-        I[#I + 1] = { tipo = "toggle", label = "Lock my clothes",
-            desc = "If your clothes get reset or your hat/glasses come off, it puts them back. If you remove or change an item (here or in the server menu), it sticks.",
-            get = function() return Ropa.fijar end,
-            set = function(on)
-                Ropa.fijar = on and true or false
-                Ropa.fija = Ropa.fijar and FotoRopa(PlayerPedId()) or nil
-                if Ropa.fijar then SembrarBase(PlayerPedId(), Ropa.fija) end
-                if Ropa.fijar and AdoptarTatuajes then AdoptarTatuajes() end
-                Avisar(Ropa.fijar and "Clothes locked" or "Clothes free")
-            end }
+        I[#I + 1] = Ropa.ToggleFijar()
         for n = 1, 3 do
-            I[#I + 1] = Btn("Save outfit " .. n, function() GuardarAtuendo(n) end,
-                "Saves the clothes you're wearing now (lost when the script reloads).")
-            I[#I + 1] = Btn("Wear outfit " .. n, function() CargarAtuendo(n) end, "Puts on the saved outfit.")
+            I[#I + 1] = { tipo = "accion", label = "Save outfit " .. n, fn = function() GuardarAtuendo(n) end,
+                derecha = Ropa.atuendos[n] and "saved" or "empty",
+                desc = "Saves your whole look: clothes, accessories, hair, face, makeup, eyes and tattoos. It stays saved after restarting." }
+            I[#I + 1] = Btn("Wear outfit " .. n, function() CargarAtuendo(n) end, "Puts on the whole saved look.")
         end
+        I[#I + 1] = { tipo = "toggle", label = "Wear last outfit on start", key = "atuendoAlIniciar",
+            desc = "When the script loads, puts on the last outfit you wore (and locks it if Lock my clothes was on)." }
     end },
     { "Tools", function(I)
         I[#I + 1] = Btn("Random clothes", function()
@@ -2113,6 +2122,7 @@ end
 Ropa.CopiarDe = CopiarRopaDe   -- para copiar apuntando con la freecam
 
 local function CategoriaCopiar(I)
+    I[#I + 1] = Ropa.ToggleFijar()
     I[#I + 1] = Btn("Refresh list", function() Ropa.sucio = true end, "Searches again for nearby players.")
     local pos = GetEntityCoords(PlayerPedId())
     local js = {}
@@ -2292,7 +2302,17 @@ local function RutaArchivo(clave)
     return base .. "\\" .. clave .. ".txt"
 end
 
+-- Archivos de Susano (Susano.WriteFile / ReadFile, .ssn): es lo que queda guardado aunque reinicies.
+-- En Susano no hay io, así que sin esto no se guardaba nada en disco.
+local function SusanoArchivos()
+    return type(Susano) == "table" and type(Susano.WriteFile) == "function" and type(Susano.ReadFile) == "function"
+end
+
 local function Escribir(clave, texto)
+    if SusanoArchivos() then
+        local ok, r = pcall(Susano.WriteFile, clave .. ".ssn", texto)
+        if ok and r ~= false then return true end
+    end
     local ruta = RutaArchivo(clave)
     if not ruta then return false end
     local ok = pcall(function()
@@ -2304,6 +2324,10 @@ local function Escribir(clave, texto)
 end
 
 local function LeerArchivo(clave)
+    if SusanoArchivos() then
+        local ok, t = pcall(Susano.ReadFile, clave .. ".ssn")
+        if ok and type(t) == "string" and t ~= "" then return t end
+    end
     local ruta = RutaArchivo(clave)
     if not ruta then return nil end
     local ok, texto = pcall(function()
@@ -2316,7 +2340,7 @@ local function LeerArchivo(clave)
     return ok and texto or nil
 end
 
-function Guardado.Disponible() return RutaArchivo("prueba") ~= nil end
+function Guardado.Disponible() return SusanoArchivos() or RutaArchivo("prueba") ~= nil end
 
 local function GuardarKvp(clave, tabla) return Escribir(clave, Serializar(tabla)) end
 local function CargarKvp(clave) return Deserializar(LeerArchivo(clave)) end
@@ -2403,8 +2427,8 @@ local function AplicarApariencia(a)
         if a.ojos then Ropa.ojos = a.ojos; SetPedEyeColor(p, a.ojos) end
     end
     for c, v in pairs(a.comp or {}) do
-        if type(v) == "table" and IsPedComponentVariationValid(p, c, v[1], v[2]) then
-            SetPedComponentVariation(p, c, v[1], v[2], v[3] or 0)
+        if type(v) == "table" and v[1] and v[1] >= 0 then
+            SetPedComponentVariation(p, c, v[1], math.max(v[2] or 0, 0), v[3] or 0)
         end
     end
     for pr, v in pairs(a.prop or {}) do
@@ -4306,8 +4330,8 @@ local function QuitarPtfx(h) if h then StopParticleFxLooped(h, false); RemovePar
 -- Parar de echar agua: se quita el chorro y el camión desaparece
 function Extras.PararAgua()
     local A = Extras.agua
-    QuitarPtfx(A.chorro)
-    A.chorro, A.echando, A.ultimoObjetivo = nil, false, nil
+    QuitarPtfx(A.chorro); QuitarPtfx(A.salpica)
+    A.chorro, A.chorroDe, A.salpica, A.echando, A.ultimoObjetivo = nil, nil, nil, false, nil
     Extras.QuitarCamion()
 end
 
@@ -4317,8 +4341,84 @@ function Extras.PausarAgua()
     local A, C = Extras.agua, Extras.camion
     A.echando = false
     A.pausaHasta = GetGameTimer() + 4000
+    QuitarPtfx(A.chorro); QuitarPtfx(A.salpica)
+    A.chorro, A.chorroDe, A.salpica = nil, nil, nil
     if C.drv and DoesEntityExist(C.drv) then ClearPedTasks(C.drv) end
     C.tareaDe = nil
+end
+
+-- ── Chorro clavado a la mira ──────────────────────────────
+-- El chorro visible son las partículas del propio cañón de bomberos (water_cannon_jet), colocadas a mano:
+-- salen de 'boca' y apuntan exactamente a 'impacto'. Donde cae: salpicadura y agua a presión del juego
+-- INVISIBLE (moja y tumba, sincronizada, sin daño y sin géiser). No hay IA apuntando una torreta,
+-- así que no baila: va siempre a donde marca la mira.
+--   ancla: entidad que lleva el chorro. El camión invisible (quieto en la línea de la mira) en la freecam;
+--   tu personaje en la manguera normal (el chorro sale de las manos).
+local LARGO_CHORRO = 14.0                    -- hasta dónde se ve llegar el chorro (m)
+local SALPICA = "water_cannon_spray"
+function Extras.ChorroMira(ped, boca, impacto, objPed, ancla)
+    local A = Extras.agua
+    A.echando = true
+    local ahora = GetGameTimer()
+    local v = impacto - boca
+    local dist = math.max(#v, 0.01)
+    local rumbo = deg(atan(-v.x, v.y))
+    local incl = deg(asin(math.max(-1.0, math.min(1.0, v.z / dist))))
+    -- 1) chorro visible (lo ven todos)
+    if PtfxListo() then
+        local ent, ox, oy, oz, rx, rz
+        if ancla then
+            ent, ox, oy, oz, rx, rz = ancla, 0.0, 0.0, 0.0, incl, 0.0       -- el ancla ya está girada hacia el impacto
+        else
+            local l = GetOffsetFromEntityGivenWorldCoords(ped, boca.x, boca.y, boca.z)
+            ent, ox, oy, oz = ped, l.x, l.y, l.z
+            rx, rz = incl, (rumbo - GetEntityHeading(ped) + 540.0) % 360.0 - 180.0
+        end
+        if not A.chorro or A.chorroDe ~= ent then
+            QuitarPtfx(A.chorro)
+            UseParticleFxAssetNextCall(PTFX)
+            A.chorro = StartNetworkedParticleFxLoopedOnEntity("water_cannon_jet", ent, ox, oy, oz, rx, 0.0, rz, 1.0, false, false, false)
+            A.chorroDe = ent
+        else
+            SetParticleFxLoopedOffsets(A.chorro, ox, oy, oz, rx, 0.0, rz)
+        end
+        -- 2) salpicadura donde cae (solo en tu pantalla; se rehace cuando el punto se mueve)
+        if type(StartParticleFxLoopedAtCoord) == "function" then
+            local u = A.salpicaEn
+            if not A.salpica or not u or #(u - impacto) > 0.6 then
+                if ahora >= (A.proxSalpica or 0) then
+                    A.proxSalpica = ahora + 90
+                    QuitarPtfx(A.salpica)
+                    UseParticleFxAssetNextCall(PTFX)
+                    A.salpica = StartParticleFxLoopedAtCoord(SALPICA, impacto.x, impacto.y, impacto.z, 0.0, 0.0, rumbo + 180.0,
+                        1.0, false, false, false, false)
+                    A.salpicaEn = impacto
+                end
+            end
+        end
+    end
+    -- 3) agua a presión invisible justo en el impacto (moja, tumba y empuja; la notan todos)
+    if ahora >= (A.proxBoca or 0) then
+        A.proxBoca = ahora + 250
+        AddOwnedExplosion(ped, impacto.x, impacto.y, impacto.z, EXP_AGUA, 1.0, true, true, 0.0)
+        StopFireInRange(impacto.x, impacto.y, impacto.z, 3.0)
+        -- empujón extra al coche apuntado (solo si el juego nos deja controlarlo)
+        local veh = objPed and GetVehiclePedIsIn(objPed, false) or 0
+        if veh ~= 0 and NetworkHasControlOfEntity(veh) then
+            local f = v * (1.0 / dist)
+            ApplyForceToEntity(veh, 1, f.x * 9.0, f.y * 9.0, 6.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+        end
+    end
+end
+
+-- Punto donde cae el agua según a quién apuntas: el coche si va en uno, el cuerpo si va a pie, si no la mira
+local function ImpactoDe(punto, objPed)
+    if objPed and DoesEntityExist(objPed) then
+        local veh = GetVehiclePedIsIn(objPed, false)
+        local c = GetEntityCoords(veh ~= 0 and veh or objPed)
+        return vector3(c.x, c.y, c.z + (veh ~= 0 and 0.3 or 0.0))
+    end
+    return punto
 end
 
 -- Agua desde la freecam con el cañón de verdad del camión de bomberos (invisible).
@@ -4327,6 +4427,33 @@ end
 -- posición calculada en sus coordenadas, porque así el cañón dispara bien.
 -- Si el servidor no deja crear el camión, de respaldo: agua a presión en el punto.
 function Extras.AguaEn(ped, origen, punto, objPed)
+    if Config.aguaMira then
+        local C = Extras.camion
+        local impacto = ImpactoDe(punto, objPed)
+        if not impacto then return end
+        -- boca: un poco por debajo de la cámara; si el objetivo está lejos, avanza por la línea de la mira
+        -- (así desde la cámara el chorro siempre sale del centro hacia la mira)
+        local d = impacto - origen
+        local dist = math.max(#d, 0.01)
+        local u = d * (1.0 / dist)
+        local boca = origen + u * math.max(dist - LARGO_CHORRO, 1.2) + vector3(0.0, 0.0, -0.45)
+        -- el camión invisible hace de soporte del chorro: quieto en ese punto y girado hacia el impacto
+        local ancla
+        if GetGameTimer() >= (C.fallido or 0) then
+            if not C.listo then
+                CrearCamion(ped)                       -- mientras se crea, el chorro va con tu personaje
+            elseif DoesEntityExist(C.veh) then
+                if IsEntityAttached(C.veh) then DetachEntity(C.veh, false, false); C.pegado = nil end
+                FreezeEntityPosition(C.veh, true)
+                SetEntityCoordsNoOffset(C.veh, boca.x, boca.y, boca.z, false, false, false)
+                local v = impacto - boca
+                SetEntityRotation(C.veh, 0.0, 0.0, deg(atan(-v.x, v.y)), 2, true)
+                ancla = C.veh
+            end
+        end
+        Extras.ChorroMira(ped, boca, impacto, objPed, ancla)
+        return
+    end
     local A, C = Extras.agua, Extras.camion
     A.echando = true
     local objetivo, vehObj = punto, nil
@@ -4440,6 +4567,21 @@ local function FrameAgua(ped, ahora)
     local inclinacion = deg(asin(math.max(-1.0, math.min(1.0, v.z / dist))))
     if not IsPedInAnyVehicle(ped, false) and not IsPedRagdoll(ped) then SetEntityHeading(ped, rumbo) end
     local rel = (rumbo - GetEntityHeading(ped) + 540.0) % 360.0 - 180.0
+
+    -- Chorro clavado a la mira: sale de tus manos y cae justo donde miras (o en el marcado)
+    if Config.aguaMira then
+        if C.veh then Extras.QuitarCamion() end
+        if actual or dist <= Config.alcanceAgua + 2.0 then
+            Extras.ChorroMira(ped, desde, actual and ImpactoDe(obj, actual) or obj, actual, nil)
+        else
+            QuitarPtfx(A.chorro); QuitarPtfx(A.salpica); A.chorro, A.chorroDe, A.salpica = nil, nil, nil
+            if ahora >= (A.avisoLejos or 0) then
+                A.avisoLejos = ahora + 2500
+                Avisar("Too far for water (" .. math.floor(dist) .. " m). Mark them to reach.")
+            end
+        end
+        return
+    end
 
     -- 1) Cañón real del camión de bomberos
     local canonActivo = false
@@ -5566,6 +5708,8 @@ local Secciones = {
                 "Real game water: everyone sees it and it knocks over players and NPCs. Hold the key to spray."),
             Teclas.Fila("agua", "Spray water (hold)"),
             Teclas.Fila("fijarAgua", "Mark / unmark", "Marks whoever is in the center of your screen (also with the freecam)."),
+            Toggle("Jet follows your aim", "aguaMira",
+                "The water goes exactly where your crosshair points, also in the freecam: the fire-truck jet, a splash where it lands and invisible water pressure that soaks and knocks people. Off: uses the Water type below."),
             Lista("Water type", "tipoAgua", Extras.TIPOS_AGUA,
                 "Real cannon: invisible fire truck with the cannon over your head. Hydrant: pressurized water where it lands. Both: both."),
             Slider("Water range", "alcanceAgua", 5, 60, 1, "%.0f m", "How far the water reaches."),
@@ -11190,7 +11334,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v11.7"
+local VERSION = "v11.8"
 
 -- ═════════════════════════════════════════════════════════
 -- SURGE · INTERFAZ
@@ -11840,6 +11984,11 @@ UI.apartados = {
 }
 
 UI.novedades = {
+    { "v11.8", "Outfits saved for real", {
+        "Outfits, settings and keys are now kept after restarting (saved with Susano's own files).",
+        "Saving an outfit keeps your whole look: clothes, accessories, hair, face, makeup, eyes and tattoos.",
+        "New: Wear last outfit on start. Lock my clothes is remembered and is also at the top of Copy clothes.",
+        "The water jet goes exactly where you aim (hose and freecam), no more swinging around." } },
     { "v11.7", "Real fire-truck jet in the freecam", {
         "Water in the freecam now fires the real fire-truck cannon (invisible truck) right where you aim.",
         "Letting go keeps the truck ready for a few seconds, so the next spray starts instantly.",
@@ -13911,6 +14060,8 @@ Citizen.CreateThread(function()
     print("[cargar coches] Ajustes: " .. ((okA and hay) and "cargados" or "default")
         .. " | saved to file: " .. (Guardado.Disponible() and "yes" or "no (use Export/Import)"))
     if Config.aparienciaAlIniciar then pcall(Guardado.CargarApariencia, true) end
+    if Config.atuendoAlIniciar and (Config.ultimoAtuendo or 0) > 0 then pcall(Ropa.CargarAtuendo, Config.ultimoAtuendo, true) end
+    if Config.fijarRopa then pcall(Ropa.ToggleFijar().set, true) end
 
     -- Guardado automático (cada vez que algo cambia, a los 2 s)
     Citizen.CreateThread(function()
