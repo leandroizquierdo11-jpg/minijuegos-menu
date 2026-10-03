@@ -1,5 +1,8 @@
--- cargar_coches.lua  ·  Surge v11.9
+-- cargar_coches.lua  ·  Surge v11.10
 -- Script para FiveM usando la API de Susano (susano.re)
+--   v11.10: TUNEO EN SERVIDOR · si el recurso surge-tuneo está en el servidor, el tuneo se guarda ahí (KVP del
+--           servidor, sobrevive a reinicios, todos lo ven) · si no, se guarda en local (.ssn) como antes · el
+--           cliente manda TriggerServerEvent y recibe con RegisterNetEvent, sin tocar otros recursos
 --   v11.9: TUNEO GUARDADO · cada cambio del taller se guarda para ese modelo (archivo de Susano, sobrevive a
 --          reiniciar el juego o el servidor) y se pone solo al conducir un coche de ese modelo; como lo pone el
 --          conductor, lo ven todos · pestaña Garage > Saved (guardar ya, poner, olvidar, lista de modelos)
@@ -1106,11 +1109,12 @@ end
 local function Anadir(lista, it) if it then lista[#lista + 1] = it end end
 
 -- ── Tuneo guardado ────────────────────────────────────────
--- Se guarda el tuneo de cada modelo que tuneas (en el archivo de Susano, así sigue ahí al reiniciar)
--- y se vuelve a poner cuando conduces uno de ese modelo. Como lo pone el conductor, el juego se lo
--- enseña a todos los jugadores.
+-- Si el recurso surge-tuneo está en el servidor, se usa TriggerServerEvent para guardar/cargar
+-- (el servidor guarda con KVP, sobrevive a reinicios). Si no, se guarda en local (.ssn).
+-- En ambos casos lo pone el conductor (network owner), así lo ven todos.
 Tuneo.guardados = {}                -- [tostring(modelo)] = { nombre = ..., p = propiedades }
 Tuneo.puestos = setmetatable({}, { __mode = "k" })
+Tuneo.servidor = false              -- se pone a true cuando el servidor responde
 local N_ModColor1 = Nativa("GetVehicleModColor_1")
 local N_ModColor2 = Nativa("GetVehicleModColor_2")
 local N_SetModColor1 = Nativa("SetVehicleModColor_1")
@@ -1180,10 +1184,18 @@ end
 
 function Tuneo.Guardar(v, silencioso)
     if not v or not DoesEntityExist(v) then return false end
-    Tuneo.guardados[tostring(GetEntityModel(v))] = { nombre = tostring(NombreVehiculo(v)), p = Tuneo.Capturar(v) }
+    local modelo = tostring(GetEntityModel(v))
+    local entrada = { nombre = tostring(NombreVehiculo(v)), p = Tuneo.Capturar(v) }
+    Tuneo.guardados[modelo] = entrada
     Tuneo.puestos[v] = true
+    if Tuneo.servidor then
+        pcall(TriggerServerEvent, "surge:tuneoGuardar", modelo, entrada)
+    end
     local ok = Guardado.Guardar(true)
-    if not silencioso then Avisar("Tuning saved for " .. NombreVehiculo(v) .. (ok and "" or " (only until restart)")) end
+    if not silencioso then
+        if Tuneo.servidor then Avisar("Tuning saved for " .. NombreVehiculo(v))
+        else Avisar("Tuning saved for " .. NombreVehiculo(v) .. (ok and "" or " (only until restart)")) end
+    end
     return true
 end
 
@@ -1221,6 +1233,24 @@ Citizen.CreateThread(function()
             elseif Tuneo.intentos > 20 then Tuneo.puestos[v] = true end   -- sin control tras ~6 s: se deja
         end)
     end
+end)
+
+-- Escuchar tuneos del servidor (si el recurso surge-tuneo está activo, responde)
+pcall(function()
+    RegisterNetEvent("surge:tuneosDatos")
+    AddEventHandler("surge:tuneosDatos", function(todos)
+        Tuneo.servidor = true
+        if type(todos) == "table" then
+            for modelo, entrada in pairs(todos) do
+                if type(entrada) == "table" then Tuneo.guardados[tostring(modelo)] = entrada end
+            end
+            Tuneo.sucio = true
+        end
+    end)
+end)
+Citizen.CreateThread(function()
+    Citizen.Wait(3000)
+    pcall(TriggerServerEvent, "surge:tuneoCargar")
 end)
 
 CATEGORIAS = {
@@ -1377,7 +1407,9 @@ CATEGORIAS = {
             desc = "Applies the saved tuning of this model to this car." }
         I[#I + 1] = { tipo = "accion", label = "Forget this model",
             fn = function()
-                Tuneo.guardados[tostring(GetEntityModel(v))] = nil; Guardado.Guardar(true); Tuneo.sucio = true
+                local modelo = tostring(GetEntityModel(v))
+                Tuneo.guardados[modelo] = nil; Guardado.Guardar(true); Tuneo.sucio = true
+                if Tuneo.servidor then pcall(TriggerServerEvent, "surge:tuneoOlvidar", modelo) end
                 Avisar("Saved tuning removed")
             end, desc = "Deletes the saved tuning of this model." }
         local n = 0
@@ -11486,7 +11518,7 @@ local function Mix(a, b, t) return a + (b - a) * t end
 -- ═════════════════════════════════════════════════════════
 -- DIBUJO DEL MENÚ (ventana)
 -- ═════════════════════════════════════════════════════════
-local VERSION = "v11.9"
+local VERSION = "v11.10"
 
 -- ═════════════════════════════════════════════════════════
 -- SURGE · INTERFAZ
