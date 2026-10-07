@@ -3,6 +3,8 @@
 --   v11.10: TUNEO EN SERVIDOR · si el recurso surge-tuneo está en el servidor, el tuneo se guarda ahí (KVP del
 --           servidor, sobrevive a reinicios, todos lo ven) · si no, se guarda en local (.ssn) como antes · el
 --           cliente manda TriggerServerEvent y recibe con RegisterNetEvent, sin tocar otros recursos
+--           · trigger del servidor configurable en Garage > Saved · Settings > Customize > "Menu takes all input":
+--           con el menú abierto el juego no recibe ninguna tecla ni el ratón
 --   v11.9: TUNEO GUARDADO · cada cambio del taller se guarda para ese modelo (archivo de Susano, sobrevive a
 --          reiniciar el juego o el servidor) y se pone solo al conducir un coche de ese modelo; como lo pone el
 --          conductor, lo ven todos · pestaña Garage > Saved (guardar ya, poner, olvidar, lista de modelos)
@@ -150,6 +152,7 @@ local Config = {
     animBucle      = false,  -- repetir gestos y burlas sin parar
     animSoloArriba = false,  -- tus animaciones solo de cintura para arriba (puedes andar)
     descripciones  = true,   -- descripción de la opción abajo del menú
+    menuBloqueaTodo = false, -- con el menú abierto el juego no recibe ninguna tecla ni el ratón
     ventanaX       = 0,      -- desplazamiento de la ventana (se cambia arrastrándola)
     ventanaY       = 0,
     patadasMoto    = false,  -- poder pegar patadas desde la moto siempre (aunque esté bloqueado)
@@ -5990,6 +5993,8 @@ local Secciones = {
             Colores.Opcion("Aim arrow", "colorApuntado", "Arrow for who you're aiming at before marking them.", true),
             Colores.Opcion("Car outline", "colorContorno", "Box around the car you're about to grab (with «Outline on aim»).", true),
             Teclas.Fila("menu", "Open / close the menu"),
+            Toggle("Menu takes all input", "menuBloqueaTodo",
+                "While the menu is open, the game ignores every key and the mouse: you don't walk, shoot, drive or move the camera by accident."),
             Accion("Reset look", function()
                     for _, k in ipairs({ "tema", "colorAcento", "colorMarca", "colorApuntado", "colorContorno", "opacidad", "redondeo", "animaciones" }) do
                         Config[k] = Guardado.defecto[k]
@@ -14201,8 +14206,10 @@ local function Frame()
 
     if Menu.abierto then
         ProcesarMenu()
-        if Menu.escribiendo or Menu.esperandoTecla then
-            DisableAllControlActions(0)       -- escribiendo: todo el teclado es para el menú
+        if Menu.escribiendo or Menu.esperandoTecla or Config.menuBloqueaTodo then
+            DisableAllControlActions(0)       -- todo el teclado y el ratón son para el menú
+            DisableAllControlActions(1)
+            DisableAllControlActions(2)
         else
             BloquearControlesMenu()           -- si no: puedes andar/conducir con el menú abierto
         end
